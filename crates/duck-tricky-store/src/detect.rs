@@ -8,18 +8,22 @@ use duck_platform::modules;
 
 use crate::model::{Backend, BackendDetection};
 
-/// `(backend, module id)` pairs in preference order.
-const KNOWN_BACKENDS: &[(Backend, &str)] = &[
-    (Backend::TrickyStore, "tricky_store"),
-    (Backend::OhMyKeymint, "oh_my_keymint"),
-    (Backend::TeeSimulator, "teesim"),
+/// `(backend, module ids)` tuples in preference order. Each backend may be installed under
+/// any of the listed module IDs; the first match wins for that backend.
+const KNOWN_BACKENDS: &[(Backend, &[&str])] = &[
+    (Backend::TrickyStore, &["tricky_store"]),
+    (Backend::OhMyKeymint, &["oh_my_keymint"]),
+    (Backend::TeeSimulator, &["teesim", "teesim-benos"]),
 ];
 
 /// All installed backends, so the WebUI can report every one it found.
 pub fn detect_all(sysroot: &Sysroot) -> Vec<BackendDetection> {
     KNOWN_BACKENDS
         .iter()
-        .filter_map(|(backend, id)| detect_one(sysroot, *backend, id))
+        .filter_map(|(backend, ids)| {
+            ids.iter()
+                .find_map(|id| detect_one(sysroot, *backend, id))
+        })
         .collect()
 }
 
@@ -107,6 +111,28 @@ mod tests {
         let active = detect_active(&sysroot).unwrap();
         assert_eq!(active.backend, Backend::TeeSimulator);
         assert!(active.active);
+    }
+
+    #[test]
+    fn detects_teesim_benos_as_tee_simulator() {
+        let sysroot = sysroot("benos");
+        install(&sysroot, "teesim-benos", 1, false);
+
+        let active = detect_active(&sysroot).unwrap();
+        assert_eq!(active.backend, Backend::TeeSimulator);
+        assert_eq!(active.module_id, "teesim-benos");
+        assert!(active.active);
+    }
+
+    #[test]
+    fn teesim_preferred_over_teesim_benos_when_both_present() {
+        let sysroot = sysroot("both-teesim");
+        install(&sysroot, "teesim", 400, false);
+        install(&sysroot, "teesim-benos", 1, false);
+
+        let active = detect_active(&sysroot).unwrap();
+        assert_eq!(active.backend, Backend::TeeSimulator);
+        assert_eq!(active.module_id, "teesim");
     }
 
     #[test]

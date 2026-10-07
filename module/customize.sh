@@ -33,7 +33,8 @@ fi
 
 if [ ! -d "/data/adb/modules/tricky_store" ] &&
   [ ! -d "/data/adb/modules/oh_my_keymint" ] &&
-  [ ! -d "/data/adb/modules/teesim" ]; then
+  [ ! -d "/data/adb/modules/teesim" ] &&
+  [ ! -d "/data/adb/modules/teesim-benos" ]; then
   ui_print "! No keystore module found (Tricky Store, OhMyKeymint or TEESimulator)."
   ui_print "  The Tricky Store manager stays idle until one is installed."
 fi
