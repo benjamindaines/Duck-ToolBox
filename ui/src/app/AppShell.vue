@@ -51,7 +51,13 @@ const collapsed = computed(() => !headline.value || y.value > 40)
         close-button
         :offset="{ top: 'calc(var(--inset-top) + 16px)' }"
         :mobile-offset="{ top: 'calc(var(--inset-top) + 8px)' }"
-        :toast-options="{ descriptionClass: 'whitespace-pre-line' }"
+        :toast-options="{
+          classes: {
+            content: 'min-w-0 flex-1',
+            description: 'whitespace-pre-line',
+            actionButton: 'shrink-0',
+          },
+        }"
       />
       <ErrorDetailsDialog />
     </div>

@@ -7,6 +7,8 @@ const pages = [
   { name: "keybox", route: "/tricky-store/keybox", ready: "AOSP" },
   { name: "policy", route: "/tricky-store/policy", ready: "System patch" },
   { name: "rkp", route: "/rkp", ready: "Device" },
+  { name: "rkp-device", route: "/rkp-device", ready: "Prerequisites" },
+  { name: "tee-attestation", route: "/tee-attestation", ready: "Offline processing" },
   { name: "system", route: "/system", ready: "Duck ToolBox" },
   { name: "settings", route: "/settings", ready: "Language" },
 ]
@@ -23,9 +25,14 @@ for (const variant of variants) {
     for (const target of pages) {
       test(target.name, async ({ page, open }) => {
         await open(target.route, { theme: variant.theme, locale: variant.locale })
-        if (variant.locale === "en")
+        // The shell and the page have painted a heading. Waiting on the network instead
+        // would screenshot a half-rendered page in the translated variants.
+        await expect(page.getByRole("heading").first()).toBeVisible()
+        // The English variants can also prove the page is the expected one; the `ready`
+        // strings are not translated.
+        if (variant.locale === "en") {
           await expect(page.getByText(target.ready).first()).toBeVisible()
-        await page.waitForLoadState("networkidle")
+        }
         await page.screenshot({
           path: `test-results/screenshots/${variant.name}-${target.name}.png`,
           fullPage: true,

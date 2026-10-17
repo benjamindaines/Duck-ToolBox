@@ -38,6 +38,7 @@ export function errorDescription(error: unknown): string {
 export function notifyError(error: unknown, title: string = errorTitle(error)): void {
   toast.error(title, {
     description: errorDescription(error),
+    classes: { description: "line-clamp-4" },
     action: {
       label: i18n.global.t("core.actions.details"),
       onClick: () => showErrorDetails(error),

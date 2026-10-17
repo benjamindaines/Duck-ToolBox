@@ -5,6 +5,8 @@ test("lists every tool on the home page", async ({ page, open }) => {
   for (const name of [
     "Tricky Store",
     "RKP Workbench",
+    "Device RKP Issuer",
+    "TEE Attestation Extractor",
     "Device ID Provisioner",
     "Module & updates",
   ]) {
@@ -19,6 +21,28 @@ test("confirms the Device ID warning before opening the tool", async ({ page, op
   await expect(dialog.getByText(/Qualcomm-based OnePlus/)).toBeVisible()
   await dialog.getByRole("button", { name: "Continue" }).click()
   await expect(page.getByLabel("Brand")).toHaveValue("OnePlus")
+})
+
+test("confirms the device RKP warning before opening the tool", async ({ page, open }) => {
+  await open("/")
+  await page.getByRole("button", { name: /Device RKP Issuer/ }).click()
+  const dialog = page.getByRole("alertdialog")
+  await expect(dialog.getByText(/only works on some devices/)).toBeVisible()
+  await dialog.getByRole("button", { name: "Continue" }).click()
+  await expect(page.getByText("Prerequisites").first()).toBeVisible()
+})
+
+test("asks again before sending a request to the KeyMint TA", async ({ page, open }) => {
+  // The opening warning is acknowledged once per session, as on the home page.
+  await page.addInitScript(() =>
+    localStorage.setItem("duck-toolbox/acknowledged", JSON.stringify(["rkp-device"])),
+  )
+  await open("/rkp-device")
+  await page.getByRole("button", { name: "Issue RKP keybox" }).click()
+  const dialog = page.getByRole("alertdialog")
+  await expect(dialog.getByText(/only works on some devices/)).toBeVisible()
+  await dialog.getByRole("button", { name: "Issue RKP keybox" }).click()
+  await expect(page.getByText("RKP keybox issued")).toBeVisible()
 })
 
 test("runs a Device ID dry run", async ({ page, open }) => {

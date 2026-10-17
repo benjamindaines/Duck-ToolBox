@@ -1,0 +1,26 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/KernelSU-Modules/tools/main/schemas/module.schema.json
+schemaVersion: 1
+id: duck-toolbox
+name: Duck ToolBox
+summary: >-
+  Android attestation toolbox with a Tricky Store, TEESimulator and OhMyKeymint
+  manager, RKP workbench and Qualcomm device ID provisioning in one WebUI.
+description: README.md
+license: MIT
+homepage: https://github.com/eltavine/Duck-ToolBox
+support: https://github.com/eltavine/Duck-ToolBox/issues
+tags: [system, tools, attestation]
+metamodule: false
+
+authors:
+  - name: Eltavine
+    url: https://github.com/eltavine
+  - name: KOW
+  - name: MhmRdd
+
+compatibility:
+  androidMinApi: 26
+  architectures: [arm64-v8a]
+
+release:
+  assetPattern: "duck-toolbox-*.zip"

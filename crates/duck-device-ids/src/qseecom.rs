@@ -1,7 +1,7 @@
 //! Thin FFI wrapper over Qualcomm's `libQSEEComAPI.so`.
 //!
-//! This is the only module in Duck ToolBox permitted to use `unsafe`: it dereferences the
-//! shared ION buffer owned by the trusted application. Everything else is safe Rust.
+//! Unsafe access is confined to this adapter: it dereferences the shared ION buffer
+//! owned by the trusted application.
 
 use std::{
     ffi::CString,

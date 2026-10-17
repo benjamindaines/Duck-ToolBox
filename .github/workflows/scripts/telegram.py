@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -45,6 +46,7 @@ def _render_caption(
     git_branch: str,
     short_sha: str,
     action_url: str,
+    release_header: str,
 ) -> str:
     commit_lines = [subject_text] if subject_text else []
     if summary_text:
@@ -52,6 +54,8 @@ def _render_caption(
     commit_block = _escape_html("\n".join(commit_lines))
 
     lines = [
+        release_header,
+        "",
         "Commit:",
         f"<pre>{commit_block}</pre>",
         f"Author: <b>{_escape_html(commit_author)}</b>",
@@ -63,14 +67,28 @@ def _render_caption(
 
 def build_caption(artifact_path: str) -> None:
     commit_message = os.environ.get("COMMIT_MESSAGE", "").strip()
-    commit_author = os.environ.get("COMMIT_AUTHOR", "").strip() or "Unknown author"
+    commit_author = os.environ.get("COMMIT_AUTHOR", "").strip()
     git_branch = os.environ.get("GIT_BRANCH", "").strip() or "unknown"
     git_sha = os.environ.get("GIT_SHA", "").strip()
     action_url = os.environ.get("GITHUB_ACTION_URL", "").strip()
+    channel = os.environ.get("RELEASE_CHANNEL", "nightly").strip()
+    version = os.environ.get("MODULE_VERSION", "unknown").strip()
+    release_header = (
+        f"Channel: <b>{_escape_html(channel)}</b>\n"
+        f"Version: <b>{_escape_html(version)}</b>"
+    )
 
     if not artifact_path or not Path(artifact_path).is_file():
         print("Module artifact was not downloaded successfully.", file=sys.stderr)
         sys.exit(1)
+
+    if not commit_message or not commit_author:
+        details = subprocess.check_output(
+            ["git", "show", "-s", "--format=%B%x00%an", git_sha or "HEAD"],
+            text=True,
+        ).split("\0", 1)
+        commit_message = commit_message or details[0].strip()
+        commit_author = commit_author or details[1].strip()
 
     if commit_message:
         lines = commit_message.splitlines()
@@ -85,27 +103,27 @@ def build_caption(artifact_path: str) -> None:
 
     max_caption_length = 1024
     caption = _render_caption(
-        subject, summary, commit_author, git_branch, short_sha, action_url
+        subject, summary, commit_author, git_branch, short_sha, action_url, release_header
     )
 
     if len(caption) > max_caption_length and summary:
         without_summary = _render_caption(
-            subject, "", commit_author, git_branch, short_sha, action_url
+            subject, "", commit_author, git_branch, short_sha, action_url, release_header
         )
         summary_budget = max_caption_length - len(without_summary) - 2
         summary = _truncate(summary, summary_budget)
         caption = _render_caption(
-            subject, summary, commit_author, git_branch, short_sha, action_url
+            subject, summary, commit_author, git_branch, short_sha, action_url, release_header
         )
 
     if len(caption) > max_caption_length:
         without_subject = _render_caption(
-            "", summary, commit_author, git_branch, short_sha, action_url
+            "", summary, commit_author, git_branch, short_sha, action_url, release_header
         )
         subject_budget = max_caption_length - len(without_subject)
         subject = _truncate(subject, subject_budget)
         caption = _render_caption(
-            subject, summary, commit_author, git_branch, short_sha, action_url
+            subject, summary, commit_author, git_branch, short_sha, action_url, release_header
         )
 
     print(caption, end="")

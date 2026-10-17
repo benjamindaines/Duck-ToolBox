@@ -40,17 +40,22 @@ const report = computed(() => {
 
 <template>
   <Dialog v-model:open="errorDetails.open">
-    <DialogContent class="max-h-[85vh] grid-rows-[auto_minmax(0,1fr)_auto]">
+    <DialogContent
+      class="max-h-[85dvh] min-w-0 grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden"
+    >
       <DialogHeader>
-        <DialogTitle>{{ errorTitle(errorDetails.error) }}</DialogTitle>
-        <DialogDescription class="break-words">
+        <DialogTitle class="[overflow-wrap:anywhere]">
+          {{ errorTitle(errorDetails.error) }}
+        </DialogTitle>
+      </DialogHeader>
+      <div class="min-h-0 min-w-0 space-y-3 overflow-y-auto [overflow-wrap:anywhere]">
+        <DialogDescription class="whitespace-pre-wrap">
           {{ errorDescription(errorDetails.error) }}
         </DialogDescription>
-      </DialogHeader>
-      <div class="min-h-0 space-y-3 overflow-y-auto">
         <KeyValueList :rows="rows" />
         <pre
-          class="bg-muted max-h-64 overflow-auto rounded-lg p-3 font-mono text-xs leading-5 whitespace-pre-wrap"
+          dir="ltr"
+          class="bg-muted max-h-64 min-w-0 overflow-auto rounded-lg p-3 font-mono text-xs leading-5 whitespace-pre-wrap"
           >{{ report }}</pre>
       </div>
       <DialogFooter>

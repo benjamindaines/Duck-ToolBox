@@ -21,6 +21,8 @@ describe.skipIf(!hasDuckd)("system API against the real duckd", CONTRACT, () => 
     const manifest = await featureManifest()
     expect(manifest.features.map((feature) => feature.id)).toEqual([
       "rkp",
+      "rkp-device",
+      "tee-attestation",
       "device-ids",
       "tricky-store",
       "system",

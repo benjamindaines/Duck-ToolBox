@@ -9,6 +9,7 @@
 module/bin/duckd
 module/bin/duckd.exe
 *.zip
+__pycache__/
 
 # Editor files
 /.idea/

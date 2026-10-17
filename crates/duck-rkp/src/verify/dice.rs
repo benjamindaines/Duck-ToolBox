@@ -9,7 +9,7 @@ use crate::{
 };
 
 use super::{
-    ANDROID_DICE_PROFILE_VERSION, DICE_PROFILE_NAME,
+    ANDROID_DICE_PROFILE_VERSIONS, DEFAULT_DICE_PROFILE_VERSION, DICE_PROFILE_NAME,
     checks::{ensure_unique_integer_keys, required_int_bytes, required_int_text},
     cose_key::{
         CosePublicKeyInfo, parse_cose_public_key, parse_cose_sign1, verify_signed_data_signature,
@@ -17,15 +17,17 @@ use super::{
 };
 
 /// Open DICE payload fields that must be non-empty byte strings when present.
-const OPTIONAL_DICE_BYTE_FIELDS: [(i128, &str); 6] = [
+const OPTIONAL_DICE_BYTE_FIELDS: [(i128, &str); 5] = [
     (-4_670_545, "code hash"),
     (-4_670_546, "code descriptor"),
     (-4_670_547, "configuration hash"),
     (-4_670_549, "authority hash"),
     (-4_670_550, "authority descriptor"),
-    (-4_670_551, "mode"),
 ];
 const DICE_CONFIGURATION_DESCRIPTOR: i128 = -4_670_548;
+const DICE_SECURITY_VERSION: i128 = -70_005;
+/// `mode` is checked separately: the Android Profile for DICE also permits a CBOR integer.
+const DICE_MODE: i128 = -4_670_551;
 
 pub(super) fn extract_uds_key(dice_chain: &[Value]) -> Result<CosePublicKeyInfo> {
     let uds_key = dice_chain
@@ -38,6 +40,7 @@ pub(super) fn verify_dice_chain_and_extract_leaf_key(
     dice_chain: &[Value],
 ) -> Result<CosePublicKeyInfo> {
     let mut signer = extract_uds_key(dice_chain)?;
+    let mut previous_profile_index = None;
 
     for (index, item) in dice_chain.iter().enumerate().skip(1) {
         let label = format!("DICE chain entry {index}");
@@ -47,7 +50,19 @@ pub(super) fn verify_dice_chain_and_extract_leaf_key(
             return Err(anyhow!("{label} signature is invalid"));
         }
 
-        signer = parse_dice_entry_payload(&decode(entry.payload)?, &label)?;
+        let (subject_key, profile_index) =
+            parse_dice_entry_payload(&decode(entry.payload)?, &label)?;
+        if let Some(previous) = previous_profile_index
+            && profile_index < previous
+        {
+            return Err(anyhow!(
+                "{label} profile name `{}` must not precede previous profile `{}`",
+                ANDROID_DICE_PROFILE_VERSIONS[profile_index],
+                ANDROID_DICE_PROFILE_VERSIONS[previous]
+            ));
+        }
+        previous_profile_index = Some(profile_index);
+        signer = subject_key;
     }
 
     Ok(signer)
@@ -86,7 +101,7 @@ pub(super) fn validate_uds_certs(value: &Value) -> Result<()> {
     Ok(())
 }
 
-fn parse_dice_entry_payload(value: &Value, label: &str) -> Result<CosePublicKeyInfo> {
+fn parse_dice_entry_payload(value: &Value, label: &str) -> Result<(CosePublicKeyInfo, usize)> {
     let payload_label = format!("{label} payload");
     let payload_entries = as_map(value, &payload_label)?;
     ensure_unique_integer_keys(payload_entries, &payload_label)?;
@@ -98,14 +113,18 @@ fn parse_dice_entry_payload(value: &Value, label: &str) -> Result<CosePublicKeyI
         return Err(anyhow!("{label} subject must not be empty"));
     }
 
-    if let Some(profile_name) = map_get(payload_entries, DICE_PROFILE_NAME) {
-        let profile_name = as_text(profile_name, &format!("{label} profile name"))?;
-        if profile_name != ANDROID_DICE_PROFILE_VERSION {
-            return Err(anyhow!(
-                "{label} profile name must be `{ANDROID_DICE_PROFILE_VERSION}`, got `{profile_name}`"
-            ));
-        }
-    }
+    let profile_name = map_get(payload_entries, DICE_PROFILE_NAME)
+        .map(|value| as_text(value, &format!("{label} profile name")))
+        .transpose()?;
+    let effective_profile = effective_profile_name(profile_name);
+    let profile_index = ANDROID_DICE_PROFILE_VERSIONS
+        .iter()
+        .position(|profile| *profile == effective_profile)
+        .ok_or_else(|| {
+            anyhow!(
+                "{label} profile name must be one of {ANDROID_DICE_PROFILE_VERSIONS:?}, got `{effective_profile}`"
+            )
+        })?;
 
     if required_int_bytes(payload_entries, DICE_KEY_USAGE, label, "key usage")?.is_empty() {
         return Err(anyhow!("{label} key usage must not be empty"));
@@ -121,10 +140,22 @@ fn parse_dice_entry_payload(value: &Value, label: &str) -> Result<CosePublicKeyI
         }
     }
 
+    validate_dice_mode(payload_entries, label, profile_name)?;
+
     if let Some(configuration) = map_get(payload_entries, DICE_CONFIGURATION_DESCRIPTOR) {
         let descriptor_label = format!("{label} configuration descriptor");
         let configuration = decode(as_bytes(configuration, &descriptor_label)?)?;
-        as_map(&configuration, &descriptor_label)?;
+        let entries = as_map(&configuration, &descriptor_label)?;
+        if effective_profile == "android.16" {
+            ensure_unique_integer_keys(entries, &descriptor_label)?;
+            let security_version = map_get(entries, DICE_SECURITY_VERSION)
+                .ok_or_else(|| anyhow!("{descriptor_label} is missing security version"))?;
+            if !matches!(security_version, Value::Integer(value) if i128::from(*value) >= 0) {
+                return Err(anyhow!(
+                    "{descriptor_label} security version must be a CBOR unsigned integer"
+                ));
+            }
+        }
     }
 
     let subject_key_bytes = required_int_bytes(
@@ -138,4 +169,53 @@ fn parse_dice_entry_payload(value: &Value, label: &str) -> Result<CosePublicKeyI
         as_map(&subject_key, "DICE chain subject COSE key")?,
         "DICE chain subject COSE key",
     )
+    .map(|subject_key| (subject_key, profile_index))
+}
+
+/// Validates the optional DICE `mode` field.
+///
+/// The Open Profile for DICE requires a one-byte CBOR byte string. The Android Profile for DICE
+/// (`android.14`, see the profile's "Mode" note) additionally permits the mode to be encoded as a
+/// CBOR integer, which real bootloaders do emit. AOSP's `hwtrust` applies that relaxation to the
+/// `android.14` profile only and treats a certificate without `profileName` as `android.14`, so the
+/// same rule is applied here.
+fn validate_dice_mode(
+    entries: &[(Value, Value)],
+    label: &str,
+    profile_name: Option<&str>,
+) -> Result<()> {
+    let Some(mode) = map_get(entries, DICE_MODE) else {
+        return Ok(());
+    };
+    let mode_label = format!("{label} mode");
+
+    match mode {
+        Value::Bytes(bytes) => {
+            if bytes.len() != 1 {
+                return Err(anyhow!(
+                    "{mode_label} must be a single byte, got {} bytes",
+                    bytes.len()
+                ));
+            }
+            Ok(())
+        }
+        Value::Integer(_) if allows_integer_mode(profile_name) => Ok(()),
+        Value::Integer(_) => Err(anyhow!(
+            "{mode_label} is a CBOR integer, which profile `{}` does not allow; only the Open DICE byte string form is accepted",
+            effective_profile_name(profile_name)
+        )),
+        other => Err(anyhow!(
+            "{mode_label} is neither CBOR bytes nor a CBOR integer: {other:?}"
+        )),
+    }
+}
+
+/// The Android Profile for DICE permits an integer `mode` in `android.14` only.
+fn allows_integer_mode(profile_name: Option<&str>) -> bool {
+    effective_profile_name(profile_name) == "android.14"
+}
+
+/// Profile name actually in force, applying the documented `android.14` default.
+fn effective_profile_name(profile_name: Option<&str>) -> &str {
+    profile_name.unwrap_or(DEFAULT_DICE_PROFILE_VERSION)
 }

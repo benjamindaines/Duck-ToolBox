@@ -6,6 +6,12 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      stable:
+        description: Publish the module.prop version as a stable release
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -17,6 +23,7 @@ env:
   NDK_VERSION: r30
   NODE_VERSION: 24
   CARGO_TERM_COLOR: always
+  RELEASE_CHANNEL: ${{ inputs.stable && 'stable' || 'nightly' }}
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -50,7 +57,7 @@ jobs:
         run: cargo test --workspace --locked
       - name: Every feature builds on its own
         run: |
-          for feature in rkp device-ids tricky-store system; do
+          for feature in rkp rkp-device tee-attestation device-ids tricky-store system; do
             echo "::group::duckd with only ${feature}"
             cargo check --locked --package duckd --no-default-features --features "${feature}"
             echo "::endgroup::"
@@ -181,6 +188,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - name: Telegram caption tests
+        run: python3 -m unittest discover -s .github/workflows/scripts -p 'test_*.py'
       - name: ShellCheck
         uses: ludeeus/action-shellcheck@2.0.0
         env:
@@ -198,7 +207,9 @@ jobs:
     name: Package module
     runs-on: ubuntu-latest
     needs: [line-limit, rust, android-backend, webui, contract, e2e, module]
-    environment: ${{ github.event_name == 'push' && 'Telegram' || '' }}
+    permissions:
+      contents: write
+    environment: ${{ (github.event_name == 'push' || inputs.stable) && 'Telegram' || '' }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -213,22 +224,41 @@ jobs:
         with:
           name: webroot
           path: module/webroot
-      - name: Assemble canary module
+      - name: Assemble module
         run: |
           version="$(sed -n 's/^version=//p' module/module.prop)"
-          code="$(git rev-list --count HEAD)"
-          # Canary builds count commits, so every push is newer than the one before.
-          sed -i "s/^versionCode=.*/versionCode=${code}/" module/module.prop
-          sed -i "s/^version=.*/version=${version} (${code}-canary)/" module/module.prop
+          tag=""
+          if [ "${RELEASE_CHANNEL}" = stable ]; then
+            name="${MODULE_ID}-${version}"
+            tag="v${version}"
+          else
+            code="$(git rev-list --count HEAD)"
+            # Canary builds count commits, so every push is newer than the one before.
+            sed -i "s/^versionCode=.*/versionCode=${code}/" module/module.prop
+            name="${MODULE_ID}-${version}-${code}-canary"
+            version="${version} (${code}-canary)"
+            sed -i "s/^version=.*/version=${version}/" module/module.prop
+          fi
           install -m 0755 artifact/bin/duckd module/bin/duckd
           cp README.md CHANGELOG.md module/
-          name="${MODULE_ID}-${version}-${code}-canary"
-          echo "ARTIFACT_NAME=${name}" >> "$GITHUB_ENV"
           mkdir -p dist
           (cd module && zip -qr "../dist/${name}.zip" .)
-          echo "MODULE_PATH=dist/${name}.zip" >> "$GITHUB_ENV"
+          {
+            echo "MODULE_VERSION=${version}"
+            echo "RELEASE_TAG=${tag}"
+            echo "ARTIFACT_NAME=${name}"
+            echo "MODULE_PATH=dist/${name}.zip"
+          } >> "$GITHUB_ENV"
+      - name: Validate KernelSU Modules metadata and ZIP
+        id: validate-module
+        uses: KernelSU-Modules/tools/actions/module-release@ca1187c92135b3c31e48d37e008d61153120a08b
+        with:
+          zip: ${{ env.MODULE_PATH }}
+          prerelease: ${{ !inputs.stable }}
+          tag: ${{ env.RELEASE_TAG }}
+          dry-run: true
       # The artifact is the module directory itself, so its nightly.link zip installs as is.
-      - name: Upload canary module
+      - name: Upload module
         uses: actions/upload-artifact@v7
         with:
           name: ${{ env.ARTIFACT_NAME }}
@@ -236,7 +266,7 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
       - name: Push module zip to Telegram
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || inputs.stable
         env:
           COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
           COMMIT_AUTHOR: ${{ github.event.head_commit.author.name }}
@@ -264,3 +294,31 @@ jobs:
             exit 1
           fi
           python3 .github/workflows/scripts/telegram.py validate-response --response-file "${response_file}"
+      - name: Publish release
+        if: >-
+          ${{ !cancelled() && steps.validate-module.outcome == 'success' &&
+              github.ref == 'refs/heads/main' &&
+              (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if [ "${RELEASE_CHANNEL}" = stable ]; then
+            tag="v${MODULE_VERSION}"
+            notes_file=CHANGELOG.md
+            release_flags=(--latest)
+          else
+            timestamp="$(python3 -c 'from datetime import datetime, timezone; print(datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ"))')"
+            tag="nightly-${GITHUB_SHA:0:8}-${timestamp}"
+            notes_file="$(mktemp)"
+            {
+              printf 'Canary module built from commit %s.\n\n' "${GITHUB_SHA}"
+              printf 'CI run: %s/%s/actions/runs/%s\n' "${GITHUB_SERVER_URL}" "${GITHUB_REPOSITORY}" "${GITHUB_RUN_ID}"
+            } > "${notes_file}"
+            release_flags=(--prerelease --latest=false)
+          fi
+          gh release create "${tag}" "${MODULE_PATH}" \
+            --target "${GITHUB_SHA}" \
+            --title "${tag}" \
+            --notes-file "${notes_file}" \
+            "${release_flags[@]}"

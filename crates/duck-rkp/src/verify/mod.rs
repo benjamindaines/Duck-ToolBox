@@ -37,7 +37,11 @@ const P384_COORD_LEN: usize = 48;
 const MAX_CHALLENGE_LEN: usize = 64;
 const TEST_KEY_LABEL: i128 = -70000;
 const DICE_PROFILE_NAME: i128 = -4_670_554;
-const ANDROID_DICE_PROFILE_VERSION: &str = "android.15";
+/// supported Android profiles in increasing version order
+const ANDROID_DICE_PROFILE_VERSIONS: [&str; 3] = ["android.14", "android.15", "android.16"];
+/// Profile assumed for a DICE certificate that carries no `profileName`, per the Android Profile
+/// for DICE.
+const DEFAULT_DICE_PROFILE_VERSION: &str = "android.14";
 
 #[derive(Debug, Clone, Serialize)]
 pub struct VerifyReport {

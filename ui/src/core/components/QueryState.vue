@@ -30,12 +30,12 @@ const { t } = useI18n()
     <Skeleton v-for="row in skeletonRows ?? 3" :key="row" class="h-16 w-full rounded-lg" />
   </div>
   <Empty v-else-if="error">
-    <EmptyHeader>
+    <EmptyHeader class="w-full min-w-0">
       <EmptyMedia variant="icon">
         <CircleAlert />
       </EmptyMedia>
-      <EmptyTitle>{{ errorTitle(error) }}</EmptyTitle>
-      <EmptyDescription class="line-clamp-4 break-words">
+      <EmptyTitle class="[overflow-wrap:anywhere]">{{ errorTitle(error) }}</EmptyTitle>
+      <EmptyDescription class="line-clamp-4 whitespace-pre-line [overflow-wrap:anywhere]">
         {{ errorDescription(error) }}
       </EmptyDescription>
     </EmptyHeader>
