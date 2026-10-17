@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### Device RKP Issuer
+- Automatic mode tries V2, AIDL V1 and native V1 in order, skipping unavailable methods.
+  Any issuance or validation failure advances to the next method with a fresh challenge;
+  failures are aggregated only after every method fails. Successful results include an
+  attempt history. Local file writes happen after certificate validation succeeds.
+- Adds the `v1-native` backend for vendor command `0x311e`. Native V1 reuses the
+  V1 CSR assembler, structural checks and isolated worker, and does not require a system
+  AIDL APK at runtime. Firmware and server acceptance remain unverified.
+- Reports protocol and backend separately, exposes native V1 resource availability,
+  and uses feature contract 5 across the CLI and WebUI.
+- Adds the V1 AIDL signing oracle for Qualcomm PureSoft firmware with a zero HBK,
+  adapted from LazyBonesLZY/rkp-v1-oracle under its MIT license.
+- Adds automatic and explicit V1/V2 protocol selection.
+- Selects the full EEK chain for the HAL's reported curve and uses the device's AIDL
+  proxy in an isolated process, with bounded exchange files and timeout cleanup.
+- Reports V1 as structurally checked; encrypted signing evidence is verified by the
+  provisioning server. V2 retains local signature verification.
+
 ### TEE Attestation Extractor
 - New offline tool for extracting Keybox XML and PEM material from existing captures and
   verifying private-key correspondence, certificate signatures and chain completeness.

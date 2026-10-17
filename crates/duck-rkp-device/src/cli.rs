@@ -3,13 +3,13 @@ use std::path::PathBuf;
 use clap::Subcommand;
 use duck_core::{BoxFuture, ClapFeature, CommandResult, Context, FeatureInfo, IntoCommandResult};
 
-use crate::{error::code_of, service, status, worker};
+use crate::{error::code_of, issuance::Protocol, service, status, worker};
 
 pub static FEATURE: ClapFeature<Command> = ClapFeature::new(
     FeatureInfo {
         id: "rkp-device",
         summary: "Device-backed RKP issuance on compatible Qualcomm KeyMint firmware",
-        contract: 2,
+        contract: 5,
     },
     dispatch,
 );
@@ -20,6 +20,9 @@ pub enum Command {
     Status,
     /// Issue one RKP ECDSA keybox using this device's KeyMint TA (compatible firmware only).
     Provision {
+        /// Auto tries V2, AIDL V1, then native V1 until one completes successfully.
+        #[arg(long, value_enum, default_value = "auto")]
+        protocol: Protocol,
         /// Acknowledge that only some devices work and that only RKP certificates are issued.
         #[arg(long)]
         acknowledge_limitations: bool,
@@ -49,12 +52,14 @@ fn dispatch<'a>(command: Command, ctx: &'a Context) -> BoxFuture<'a, CommandResu
                 status.into_command("rkp-device.status", code_of)
             }
             Command::Provision {
+                protocol,
                 acknowledge_limitations,
                 fingerprint,
                 server_url,
                 output,
             } => {
                 let options = service::Options {
+                    protocol,
                     fingerprint,
                     output: output.map(|path| ctx.paths.resolve_in_root(&path)),
                 };
@@ -65,7 +70,10 @@ fn dispatch<'a>(command: Command, ctx: &'a Context) -> BoxFuture<'a, CommandResu
                         acknowledge_limitations,
                         options,
                         &service::RandomKeys,
-                        &service::Device { paths: &ctx.paths },
+                        &service::Device {
+                            paths: &ctx.paths,
+                            sysroot: &ctx.sysroot,
+                        },
                         &server,
                         &service::DeviceEnvironment,
                     )

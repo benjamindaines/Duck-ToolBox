@@ -33,6 +33,10 @@ impl Environment for FakeEnvironment {
             root: true,
             library_present: true,
             device_present: true,
+            v1_available: true,
+            v1_native_available: true,
+            v2_available: true,
+            aidl_apk: Some("/apex/com.android.rkpd/priv-app/rkpd/rkpdapp.apk".into()),
             qualcomm_soc: true,
             library_path: "/vendor/lib64/libkeymasterdeviceutils.so",
             device_path: "/dev/smcinvoke",
@@ -58,6 +62,10 @@ impl Environment for BlockedEnvironment {
             root: false,
             library_present: false,
             device_present: false,
+            v1_available: false,
+            v1_native_available: false,
+            v2_available: true,
+            aidl_apk: None,
             qualcomm_soc: false,
             library_path: "/vendor/lib64/libkeymasterdeviceutils.so",
             device_path: "/dev/smcinvoke",
@@ -191,6 +199,7 @@ struct FakeServer {
     submitted: Mutex<Vec<Vec<u8>>>,
     fingerprint: Mutex<Option<String>>,
     challenge: [u8; 32],
+    eek_chains: Vec<duck_rkp::http::EekChain>,
 }
 
 impl FakeServer {
@@ -199,6 +208,11 @@ impl FakeServer {
             submitted: Mutex::new(Vec::new()),
             fingerprint: Mutex::new(None),
             challenge: CHALLENGE,
+            eek_chains: vec![duck_rkp::http::EekChain {
+                curve: RPC_CURVE_25519,
+                // Structurally valid COSE_Sign1 fixture; TA acceptance is simulated.
+                encoded: vec![0x81, 0x84, 0x40, 0xa0, 0x40, 0x40],
+            }],
         }
     }
 }
@@ -214,6 +228,7 @@ impl Server for FakeServer {
                 eek_public: vec![0x55; 32],
                 eek_id: vec![0x66; 4],
                 eek_curve: RPC_CURVE_25519,
+                eek_chains: self.eek_chains.clone(),
             })
         })
     }
@@ -294,6 +309,12 @@ fn csr_keys_to_sign(csr: &[u8]) -> Value {
     let Value::Array(request) = decoded else {
         panic!("CSR must be a CBOR array");
     };
+    if matches!(request[0], Value::Array(_)) {
+        let maced = duck_rkp::cbor::as_array(&request[3], "MacedKeys").unwrap();
+        let payload = duck_rkp::cbor::as_bytes(&maced[2], "MacedKeys payload").unwrap();
+        let payload = duck_rkp::cbor::decode(payload).unwrap();
+        return duck_rkp::cbor::as_array(&payload, "keysToSign").unwrap()[0].clone();
+    }
     let Value::Array(signed) = &request[3] else {
         panic!("SignedData must be a CBOR array");
     };
@@ -363,6 +384,7 @@ async fn provision_completes_the_round_trip_and_writes_artifacts() {
         &ctx,
         true,
         Options {
+            protocol: super::Protocol::Auto,
             fingerprint: Some(FINGERPRINT.into()),
             output: None,
         },
@@ -379,8 +401,8 @@ async fn provision_completes_the_round_trip_and_writes_artifacts() {
     assert_eq!(data.mode, "device-ta-oracle");
     assert_eq!(data.fingerprint, FINGERPRINT);
     assert_eq!(data.challenge_hex, hex::encode(CHALLENGE));
-    assert!(data.local_verify.signature_valid);
-    assert_eq!(data.local_verify.keys_to_sign, 1);
+    assert!(data.local_verify.as_ref().unwrap().signature_valid);
+    assert_eq!(data.local_verify.as_ref().unwrap().keys_to_sign, 1);
     assert_eq!(data.chain.certificates, 2);
     assert_eq!(
         data.chain.subjects,
@@ -425,7 +447,10 @@ async fn provision_rejects_a_csr_for_another_key() {
     let error = provision(
         &ctx,
         true,
-        Options::default(),
+        Options {
+            protocol: super::Protocol::V2,
+            ..Options::default()
+        },
         &FixedKeys,
         &ta,
         &server,
@@ -452,6 +477,7 @@ async fn provision_mirrors_the_keybox_to_an_explicit_output() {
         &ctx,
         true,
         Options {
+            protocol: super::Protocol::Auto,
             fingerprint: None,
             output: Some(output.clone()),
         },
@@ -501,3 +527,12 @@ fn exactly_one_nonempty_bounded_certificate_chain_is_required() {
 
 #[path = "service_prerequisite_tests.rs"]
 mod prerequisites;
+
+#[path = "service_native_tests.rs"]
+mod native;
+
+#[path = "service_v1_tests.rs"]
+mod legacy;
+
+#[path = "service_fallback_tests.rs"]
+mod fallback;

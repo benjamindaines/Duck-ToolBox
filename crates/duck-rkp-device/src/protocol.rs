@@ -45,9 +45,6 @@ pub(crate) fn validate_request(payload: &[u8]) -> Result<()> {
         bail!("CSR request must contain only challenge and keysToSign");
     }
     let challenge = as_bytes(required_map_get(entries, 4, "challenge")?, "challenge")?;
-    if challenge.is_empty() || challenge.len() > 64 {
-        bail!("server challenge must be 1..64 bytes");
-    }
     let keys = decode_exact(as_bytes(
         required_map_get(entries, 57, "keysToSign")?,
         "keysToSign bytes",
@@ -56,7 +53,15 @@ pub(crate) fn validate_request(payload: &[u8]) -> Result<()> {
     if keys.len() != 1 {
         bail!("exactly one P-256 key is required");
     }
-    let key = as_map(&keys[0], "P-256 key")?;
+    validate_inputs(challenge, &keys[0])
+}
+
+/// Shared semantic contract for the single-key device issuers, independent of TA framing.
+pub(crate) fn validate_inputs(challenge: &[u8], public_key: &Value) -> Result<()> {
+    if challenge.is_empty() || challenge.len() > 64 {
+        bail!("server challenge must be 1..64 bytes");
+    }
+    let key = as_map(public_key, "P-256 key")?;
     if key.len() != 5
         || [1, 3, -1, -2, -3]
             .iter()
@@ -195,14 +200,18 @@ pub(crate) fn ta_payload(request: &[u8]) -> Result<&[u8]> {
     let Some((command, payload)) = request.split_at_checked(4) else {
         bail!("request is missing its command header");
     };
+    if command == crate::v1::native::COMMAND.to_le_bytes() {
+        crate::v1::native::validate_request(payload)?;
+        return Ok(payload);
+    }
     if command != CSR_COMMAND.to_le_bytes() {
-        bail!("worker only accepts CSR_V2 requests");
+        bail!("worker only accepts CSR_V2 or native V1 requests");
     }
     validate_request(payload)?;
     Ok(payload)
 }
 
-fn decode_exact(bytes: &[u8]) -> Result<Value> {
+pub(crate) fn decode_exact(bytes: &[u8]) -> Result<Value> {
     let mut reader = Cursor::new(bytes);
     let value = ciborium::from_reader(&mut reader).context("decode CBOR")?;
     if reader.position() != bytes.len() as u64 {

@@ -229,6 +229,24 @@ fn parse_p256_public_key(public_key_bytes: &[u8]) -> Result<P256PublicKey> {
     P256PublicKey::from_sec1_bytes(&sec1).map_err(|_| anyhow!("parse P-256 EEK public key"))
 }
 
+/// HMAC-SHA256 over the COSE MAC0 structure containing the requested public keys.
+pub fn key_mac_tag(mac_key: &[u8; 32], keys_to_sign: &[Value]) -> Result<[u8; 32]> {
+    let encoded = encode(&Value::Array(keys_to_sign.to_vec()))?;
+    build_keys_to_sign_mac(mac_key, &encoded)?
+        .try_into()
+        .map_err(|_| anyhow!("HMAC-SHA256 tag must contain 32 bytes"))
+}
+
+/// Legacy COSE_Mac0 with the exact key-array payload used to calculate its tag.
+pub fn cose_mac0(keys_to_sign: &[Value], tag: &[u8; 32]) -> Result<Vec<u8>> {
+    encode(&Value::Array(vec![
+        bytes(encode(&Value::Map(vec![(int(1), int(ALG_HMAC_256))]))?),
+        empty_map(),
+        bytes(encode(&Value::Array(keys_to_sign.to_vec()))?),
+        bytes(tag.to_vec()),
+    ]))
+}
+
 fn build_keys_to_sign_mac(mac_key: &[u8; 32], keys_to_sign_cbor: &[u8]) -> Result<Vec<u8>> {
     let mac_protected = encode(&Value::Map(vec![(int(1), int(ALG_HMAC_256))]))?;
     let mac_structure = build_cose_structure("MAC0", &mac_protected, &[], keys_to_sign_cbor)?;

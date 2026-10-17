@@ -21,6 +21,15 @@ pub struct EekResponse {
     #[serde(skip)]
     pub eek_id: Vec<u8>,
     pub eek_curve: i128,
+    /// Complete, curve-indexed chains for the legacy HAL, which verifies the EEK root.
+    #[serde(skip)]
+    pub eek_chains: Vec<EekChain>,
+}
+
+#[derive(Debug, Clone)]
+pub struct EekChain {
+    pub curve: i128,
+    pub encoded: Vec<u8>,
 }
 
 #[derive(Debug, Clone)]
@@ -279,6 +288,27 @@ fn parse_fetch_eek_response(body: &[u8]) -> Result<EekResponse> {
     validate_challenge(&challenge)?;
 
     let selected = invalid_rkp_response(select_eek_material(eek_chains))?;
+    let mut legacy_chains = Vec::new();
+    for entry in invalid_rkp_response(as_array(eek_chains, "EEK chains"))? {
+        // Additional unusable chains must not invalidate an already selected EEK.
+        let Ok(pair) = as_array(entry, "EEK chain entry") else {
+            continue;
+        };
+        let Some(curve) = pair.first().and_then(|v| as_i128(v, "curve").ok()) else {
+            continue;
+        };
+        if [RPC_CURVE_25519, RPC_CURVE_P256].contains(&curve)
+            && extract_eek_material(pair, curve).is_ok()
+            && !legacy_chains
+                .iter()
+                .any(|chain: &EekChain| chain.curve == curve)
+        {
+            legacy_chains.push(EekChain {
+                curve,
+                encoded: encode(&pair[1])?,
+            });
+        }
+    }
     Ok(EekResponse {
         challenge_hex: hex::encode(&challenge),
         challenge,
@@ -286,6 +316,7 @@ fn parse_fetch_eek_response(body: &[u8]) -> Result<EekResponse> {
         eek_public: selected.public_key,
         eek_id: selected.key_id,
         eek_curve: selected.curve,
+        eek_chains: legacy_chains,
     })
 }
 
@@ -322,7 +353,10 @@ fn parse_sign_certificates_response(body: &[u8]) -> Result<Vec<Vec<u8>>> {
     }
 
     if chains.is_empty() {
-        return Err(anyhow!("RKP server returned no certificate chains"));
+        return Err(RkpError::InvalidRkpResponse(
+            "RKP server returned no certificate chains".into(),
+        )
+        .into());
     }
 
     Ok(chains)
@@ -431,6 +465,21 @@ mod tests {
         assert_eq!(parsed.eek_curve, RPC_CURVE_25519);
         assert_eq!(parsed.eek_public, vec![0x33; 32]);
         assert_eq!(parsed.eek_id, x25519_key_id);
+        assert_eq!(parsed.eek_chains.len(), 2);
+        for chain in &parsed.eek_chains {
+            let chain_value = crate::cbor::decode(&chain.encoded).unwrap();
+            let original = crate::cbor::decode(&body).unwrap();
+            let outer = crate::cbor::as_array(&original, "response").unwrap();
+            let entries = crate::cbor::as_array(&outer[0], "chains").unwrap();
+            let entry = entries
+                .iter()
+                .find(|entry| crate::cbor::as_array(entry, "entry").unwrap()[0] == int(chain.curve))
+                .unwrap();
+            assert_eq!(
+                chain_value,
+                crate::cbor::as_array(entry, "entry").unwrap()[1]
+            );
+        }
     }
 
     #[test]
@@ -456,6 +505,15 @@ mod tests {
         assert_eq!(parsed.eek_public, expected_public);
         assert_eq!(parsed.eek_id, key_id);
         assert_eq!(parsed.challenge, challenge);
+    }
+
+    #[test]
+    fn retaining_legacy_chains_does_not_reject_unusable_trailing_entries() {
+        let valid = eek_chain_entry(RPC_CURVE_25519, eek_payload_x25519(None, &[0x33; 32]));
+        let body = fetch_eek_response(vec![valid, Value::Null, Value::Array(vec![])], &[1; 32]);
+        let response = parse_fetch_eek_response(&body).unwrap();
+        assert_eq!(response.eek_public, [0x33; 32]);
+        assert_eq!(response.eek_chains.len(), 1);
     }
 
     #[test]
@@ -497,5 +555,38 @@ mod tests {
         assert_eq!(parsed.eek_curve, RPC_CURVE_25519);
         assert_eq!(parsed.eek_public, vec![0x42; 32]);
         assert!(parsed.eek_id.is_empty());
+    }
+
+    #[test]
+    fn an_empty_certificate_result_is_a_server_response_error() {
+        for nested in [false, true] {
+            let result = Value::Array(vec![bytes(vec![1, 2]), Value::Array(vec![])]);
+            let result = if nested {
+                Value::Array(vec![result])
+            } else {
+                result
+            };
+            let error =
+                super::parse_sign_certificates_response(&encode(&result).unwrap()).unwrap_err();
+            assert_eq!(crate::error::code_of(&error), "invalid_rkp_response");
+        }
+    }
+
+    #[test]
+    fn certificate_results_preserve_every_chain_in_both_response_shapes() {
+        for nested in [false, true] {
+            let result = Value::Array(vec![
+                bytes(vec![1, 2]),
+                Value::Array(vec![bytes(vec![3]), bytes(vec![4, 5])]),
+            ]);
+            let result = if nested {
+                Value::Array(vec![result])
+            } else {
+                result
+            };
+            let chains =
+                super::parse_sign_certificates_response(&encode(&result).unwrap()).unwrap();
+            assert_eq!(chains, vec![vec![1, 2, 3], vec![1, 2, 4, 5]]);
+        }
     }
 }

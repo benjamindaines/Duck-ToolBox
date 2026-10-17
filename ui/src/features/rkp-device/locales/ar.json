@@ -8,7 +8,7 @@
     "title": "قبل المتابعة"
   },
   "limitations": {
-    "partial_device_support": "لا يعمل إلا على بعض الأجهزة. يلزم برنامج KeyMint الثابت من Qualcomm وصلاحية root و/dev/smcinvoke وlibkeymasterdeviceutils.so، ومع ذلك قد تختلف واجهة ABI الخاصة بالشركة.",
+    "partial_device_support": "لا يعمل إلا على بعض الأجهزة. يتطلب V1 AIDL وجود app_process وملف APK الخاص بـ RKP AIDL على الجهاز. يتطلب V2 وجود /dev/smcinvoke وlibkeymasterdeviceutils.so. V1 AIDL: PureSoft HBK=0. يجرّب الوضع التلقائي Native V1 أيضًا بعد فشل الطرق الأخرى المتاحة.",
     "rkp_only": "يمكن إصدار شهادات RKP فقط. يلزم جهاز متوافق للحصول على طلب CSR الموقّع. يُولّد المفتاح الخاص المصدّر برمجيًا؛ ولا يُستخرج أي مفتاح خاص من TEE."
   },
   "status": {
@@ -44,7 +44,10 @@
     "qualcomm_soc_required": "تم تحديد مصنّع SoC غير Qualcomm؛ تتطلب هذه العملية Qualcomm KeyMint.",
     "fingerprint_missing": "بصمة البناء مفقودة، لذا لا يمكن للخادم ربط challenge.",
     "soc_vendor_unknown": "تعذّر تحديد مصنّع SoC من الخصائص المحلية أو معلومات النواة.",
-    "soc_vendor_conflict": "معلومات SoC المحلية متعارضة. راجع أدلة التحديد قبل المتابعة."
+    "soc_vendor_conflict": "معلومات SoC المحلية متعارضة. راجع أدلة التحديد قبل المتابعة.",
+    "v1_unavailable": "يتطلب V1 وجود app_process وملف APK الخاص بـ RKP AIDL على الجهاز.",
+    "v2_unavailable": "يتطلب V2 وجود /dev/smcinvoke وlibkeymasterdeviceutils.so.",
+    "v1_native_unavailable": "يتطلب V1 Native وجود /dev/smcinvoke وlibkeymasterdeviceutils.so."
   },
   "run": {
     "provision": "إصدار keybox بتقنية RKP",
@@ -67,11 +70,17 @@
     "installed": "تم تثبيت keybox في {target}",
     "backup": "تم نسخ الملف السابق إلى {path}.",
     "onlyRkp": "شهادة RKP",
-    "onlyRkpHint": "وقّعت Google هذه السلسلة للمفتاح الموجود في ملف keybox. احتفظ بملف المفتاح الخاص: فبدونه لا يصلح keybox."
+    "onlyRkpHint": "وقّعت Google هذه السلسلة للمفتاح الموجود في ملف keybox. احتفظ بملف المفتاح الخاص: فبدونه لا يصلح keybox.",
+    "protocol": "البروتوكول",
+    "auto": "تلقائي (تجربة كل الطرق)",
+    "structureOnly": "تم فحص البنية؛ يتحقق الخادم من الأدلة المشفرة",
+    "backend": "الواجهة الخلفية",
+    "attempts": "سجل المحاولات",
+    "succeeded": "نجحت"
   },
   "confirm": {
     "title": "إرسال طلب إلى KeyMint TA؟",
-    "body": "سيُنفَّذ CSR_V2 في تطبيق KeyMint الموثوق من Qualcomm على الجهاز، ثم تُرسل النتيجة إلى Google. لا يعمل إلا على بعض الأجهزة ولا يصدر سوى شهادات RKP. تحتوي الملفات المصدّرة على مفتاح خاص؛ احتفظ بها بأمان. هل تريد المتابعة؟"
+    "body": "سيُنفَّذ RKP (V1 / V2) في تطبيق KeyMint الموثوق من Qualcomm على الجهاز، ثم تُرسل النتيجة إلى Google. لا يعمل إلا على بعض الأجهزة ولا يصدر سوى شهادات RKP. تحتوي الملفات المصدّرة على مفتاح خاص؛ احتفظ بها بأمان. هل تريد المتابعة؟"
   },
   "errors": {
     "acknowledgement_required": "لم يتم الإقرار بالقيود.",
@@ -87,6 +96,7 @@
     "invalid_rkp_response": "استجابة خادم RKP غير صالحة.",
     "device_not_registered": "لا يتعرّف خادم RKP على هذا الجهاز.",
     "rkp_client_error": "رفض خادم RKP الطلب.",
-    "rkp_server_error": "حدث خطأ في خادم RKP."
+    "rkp_server_error": "حدث خطأ في خادم RKP.",
+    "all_methods_failed": "فشلت جميع طرق الإصدار المتاحة. راجع أخطاء كل محاولة."
   }
 }

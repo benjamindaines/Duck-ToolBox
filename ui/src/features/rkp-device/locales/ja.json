@@ -8,7 +8,7 @@
     "title": "続行する前に"
   },
   "limitations": {
-    "partial_device_support": "対応するのは一部のデバイスだけです。Qualcomm KeyMint ファームウェア、root 権限、/dev/smcinvoke、libkeymasterdeviceutils.so が必要ですが、それでもベンダー ABI が異なる場合があります。",
+    "partial_device_support": "対応するのは一部のデバイスだけです。 V1 AIDL には app_process と端末の RKP AIDL APK が必要です。 V2 には /dev/smcinvoke と libkeymasterdeviceutils.so が必要です。 V1 AIDL: PureSoft HBK=0. 自動モードは、ほかの利用可能な方法が失敗した後に Native V1 も試します。",
     "rkp_only": "発行できるのは RKP 証明書のみです。署名付き CSR の取得には対応する実機が必要です。エクスポートする秘密鍵はソフトウェアで生成され、TEE から秘密鍵を抽出することはありません。"
   },
   "status": {
@@ -44,7 +44,10 @@
     "qualcomm_soc_required": "Qualcomm 以外の SoC ベンダーを識別しました。この操作には Qualcomm KeyMint が必要です。",
     "fingerprint_missing": "ビルド指紋がないため、サーバーがチャレンジを結び付けられません。",
     "soc_vendor_unknown": "ローカルのプロパティとカーネル情報から SoC ベンダーを識別できません。",
-    "soc_vendor_conflict": "ローカルの SoC 情報が矛盾しています。続行前に識別の根拠を確認してください。"
+    "soc_vendor_conflict": "ローカルの SoC 情報が矛盾しています。続行前に識別の根拠を確認してください。",
+    "v1_unavailable": "V1 には app_process と端末の RKP AIDL APK が必要です。",
+    "v2_unavailable": "V2 には /dev/smcinvoke と libkeymasterdeviceutils.so が必要です。",
+    "v1_native_unavailable": "V1 Native には /dev/smcinvoke と libkeymasterdeviceutils.so が必要です。"
   },
   "run": {
     "provision": "RKP keybox を発行",
@@ -67,11 +70,17 @@
     "installed": "keybox を {target} にインストールしました",
     "backup": "以前のファイルは {path} にバックアップされました。",
     "onlyRkp": "RKP 証明書",
-    "onlyRkpHint": "このチェーンは keybox ファイル内の鍵に対して Google が署名したものです。秘密鍵ファイルを保管してください。ないと keybox は使えません。"
+    "onlyRkpHint": "このチェーンは keybox ファイル内の鍵に対して Google が署名したものです。秘密鍵ファイルを保管してください。ないと keybox は使えません。",
+    "protocol": "プロトコル",
+    "auto": "自動（利用可能な方法を順に試行）",
+    "structureOnly": "構造のみ確認。暗号化された署名情報はサーバーで検証",
+    "backend": "バックエンド",
+    "attempts": "試行履歴",
+    "succeeded": "成功"
   },
   "confirm": {
     "title": "KeyMint TA にリクエストを送信しますか？",
-    "body": "この端末の Qualcomm KeyMint トラステッドアプリで CSR_V2 を実行し、結果を Google に送信します。対応デバイスは一部だけで、発行できるのは RKP 証明書のみです。エクスポートしたファイルには秘密鍵が含まれるため、厳重に管理してください。続行しますか？"
+    "body": "この端末の Qualcomm KeyMint トラステッドアプリで RKP (V1 / V2) を実行し、結果を Google に送信します。対応デバイスは一部だけで、発行できるのは RKP 証明書のみです。エクスポートしたファイルには秘密鍵が含まれるため、厳重に管理してください。続行しますか？"
   },
   "errors": {
     "acknowledgement_required": "制限事項が確認されていません。",
@@ -87,6 +96,7 @@
     "invalid_rkp_response": "RKP サーバーからの応答が無効です。",
     "device_not_registered": "このデバイスは RKP サーバーに認識されていません。",
     "rkp_client_error": "RKP サーバーがリクエストを拒否しました。",
-    "rkp_server_error": "RKP サーバーでエラーが発生しました。"
+    "rkp_server_error": "RKP サーバーでエラーが発生しました。",
+    "all_methods_failed": "利用可能なすべての発行方法が失敗しました。各試行のエラーを確認してください。"
   }
 }
