@@ -16,7 +16,7 @@ export default defineFeature({
   icon: ShieldCheck,
   order: 10,
   // Module ids of Tricky Store, OhMyKeymint and TEESimulator, whose WebUI entry may link here.
-  hostModules: ["tricky_store", "oh_my_keymint", "teesim"],
+  hostModules: ["tricky_store", "oh_my_keymint", "teesim", "teesim-benos"],
   routes: [
     { path: "", name: "tricky-store", component: () => import("./pages/TargetsPage.vue") },
     {

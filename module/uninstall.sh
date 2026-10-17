@@ -8,7 +8,7 @@ DATA_ROOT="/data/adb/$MODULE_ID"
 
 # Entry links in keystore modules; the shell fallback covers a missing or broken binary.
 "$MODDIR/bin/duckctl.sh" tricky-store entry remove >/dev/null 2>&1
-for module in tricky_store oh_my_keymint teesim; do
+for module in tricky_store oh_my_keymint teesim teesim-benos; do
   for name in webroot action.sh; do
     link="/data/adb/modules/$module/$name"
     [ -L "$link" ] || continue
