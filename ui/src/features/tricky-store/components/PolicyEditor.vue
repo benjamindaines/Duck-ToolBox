@@ -86,7 +86,7 @@ function fillToday() {
             {{ option }}
           </Button>
         </div>
-        <FieldDescription v-if="field.hint" class="font-mono text-xs">{{
+        <FieldDescription v-if="field.hint" class="font-mono text-sm">{{
           field.hint
         }}</FieldDescription>
       </Field>

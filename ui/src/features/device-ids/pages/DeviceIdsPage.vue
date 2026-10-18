@@ -27,9 +27,13 @@ const result = ref<DeviceIdsResult | null>(null)
 const advancedOpen = ref(false)
 const confirmOpen = ref(false)
 
-watch(defaults.data, (data) => {
-  if (data) profile.value = { ...data, dry_run: profile.value?.dry_run ?? true }
-})
+watch(
+  defaults.data,
+  (data) => {
+    if (data) profile.value = { ...data, dry_run: profile.value?.dry_run ?? true }
+  },
+  { immediate: true },
+)
 
 type Key = keyof Omit<DeviceIdsProfile, "dry_run">
 const mainFields: Key[] = ["brand", "model", "device", "product", "manufacturer", "serial"]
@@ -99,7 +103,9 @@ const resultRows = computed(() => {
               <RefreshCw />
             </Button>
           </template>
-          <div class="grid grid-cols-2 gap-x-3 gap-y-5">
+          <div
+            class="grid grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] gap-x-3 gap-y-5"
+          >
             <Field v-for="key in mainFields" :key="key">
               <FieldLabel :for="`ids-${key}`">{{ labels[key]() }}</FieldLabel>
               <Input :id="`ids-${key}`" v-model="profile[key]" autocapitalize="off" />
@@ -124,7 +130,9 @@ const resultRows = computed(() => {
               />
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <CardContent class="grid grid-cols-2 gap-x-3 gap-y-5 px-4 pt-1 pb-4">
+              <CardContent
+                class="grid grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] gap-x-3 gap-y-5 px-4 pt-1 pb-4"
+              >
                 <Field v-for="key in advancedFields" :key="key">
                   <FieldLabel :for="`ids-${key}`">{{ labels[key]() }}</FieldLabel>
                   <Input

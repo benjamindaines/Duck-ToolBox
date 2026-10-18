@@ -1,17 +1,20 @@
-use std::{fs, path::Path};
+use std::fs;
 
 use anyhow::{Context, Result, anyhow};
-use duck_core::{AppPaths, Failure, fs::write_bytes_atomic};
+use duck_core::AppPaths;
 use serde_json::{Value, json};
 
 use crate::{
     cli::{SharedRunArgs, VerifyArgs},
     error::RkpError,
-    profile::{ProfileData, ResolvedProfile, RunOverrides, resolve_profile},
+    profile::{
+        ProfileData, ResolvedProfile, RunOverrides, resolve_diagnostic_profile, resolve_profile,
+    },
     validate::validate_device_info_for_request,
     verify::verify_csr,
 };
 
+pub(crate) mod import;
 pub(crate) mod info;
 pub(crate) mod keybox;
 pub(crate) mod profile;
@@ -34,19 +37,32 @@ fn resolve_runtime(
     num_keys: Option<u32>,
     output_path: Option<String>,
 ) -> Result<ResolvedProfile> {
-    resolve_profile(
-        paths,
-        &RunOverrides {
-            profile_name: shared.profile.clone(),
-            seed_hex: shared.seed.clone(),
-            hw_key_hex: shared.hw_key.clone(),
-            kdf_label: shared.kdf_label.clone(),
-            curve: shared.curve,
-            server_url: shared.server_url.clone(),
-            num_keys,
-            output_path,
-        },
-    )
+    resolve_profile(paths, &runtime_overrides(shared, num_keys, output_path))
+}
+
+fn resolve_runtime_offline(
+    paths: &AppPaths,
+    shared: &SharedRunArgs,
+    num_keys: Option<u32>,
+) -> Result<ResolvedProfile> {
+    resolve_diagnostic_profile(paths, &runtime_overrides(shared, num_keys, None))
+}
+
+fn runtime_overrides(
+    shared: &SharedRunArgs,
+    num_keys: Option<u32>,
+    output_path: Option<String>,
+) -> RunOverrides {
+    RunOverrides {
+        profile_name: shared.profile.clone(),
+        seed_hex: shared.seed.clone(),
+        hw_key_hex: shared.hw_key.clone(),
+        kdf_label: shared.kdf_label.clone(),
+        curve: shared.curve,
+        server_url: shared.server_url.clone(),
+        num_keys,
+        output_path,
+    }
 }
 
 /// Fails fast, before any network traffic, when the profile cannot produce a valid request.
@@ -57,14 +73,6 @@ fn ensure_request_context(profile: &ProfileData) -> Result<String> {
 
     validate_device_info_for_request(&profile.device)?;
     Ok(profile.server_url.trim().to_owned())
-}
-
-fn write_output(path: &Path, bytes: &[u8], details: Option<Value>) -> Result<(), Failure> {
-    write_bytes_atomic(path, bytes).map_err(|error| Failure { error, details })
-}
-
-fn path_details(key: &str, path: &Path) -> Value {
-    json!({ key: path.display().to_string() })
 }
 
 fn random_bytes(len: usize) -> Result<Vec<u8>> {

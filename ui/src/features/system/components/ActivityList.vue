@@ -39,7 +39,9 @@ const log = useQuery({
           <CircleX v-else />
         </ItemMedia>
         <ItemContent class="min-w-0">
-          <ItemTitle class="w-full truncate font-mono text-xs">{{ entry.command }}</ItemTitle>
+          <ItemTitle class="w-full font-mono text-sm leading-6 [overflow-wrap:anywhere]">{{
+            entry.command
+          }}</ItemTitle>
           <ItemDescription class="line-clamp-2">
             {{ formatRelative(entry.ts) }}
             <template v-if="!entry.ok">

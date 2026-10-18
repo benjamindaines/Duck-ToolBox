@@ -30,12 +30,12 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
       data-slot="drawer-content"
       v-bind="{ ...$attrs, ...forwarded }"
       :class="cn(
-        'group/drawer-content bg-popover text-popover-foreground fixed z-50 flex h-auto flex-col',
+        'group/drawer-content bg-popover text-popover-foreground fixed z-50 flex h-auto min-h-0 min-w-0 flex-col overflow-y-auto overscroll-contain',
         'will-change-transform transform-[translate3d(var(--drawer-swipe-movement-x,0px),var(--drawer-swipe-movement-y,0px),0)]',
         'transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] data-swiping:duration-0 data-swiping:select-none',
         'data-[state=open]:animate-in data-[state=closed]:animate-out',
         'data-[swipe-direction=up]:inset-x-0 data-[swipe-direction=up]:top-0 data-[swipe-direction=up]:mb-24 data-[swipe-direction=up]:max-h-[80vh] data-[swipe-direction=up]:rounded-b-2xl data-[swipe-direction=up]:data-[state=open]:slide-in-from-top data-[swipe-direction=up]:data-[state=closed]:slide-out-to-top',
-        'data-[swipe-direction=down]:inset-x-0 data-[swipe-direction=down]:bottom-0 data-[swipe-direction=down]:mt-24 data-[swipe-direction=down]:mx-auto data-[swipe-direction=down]:max-h-[80vh] data-[swipe-direction=down]:max-w-160 data-[swipe-direction=down]:rounded-t-2xl data-[swipe-direction=down]:data-[state=open]:slide-in-from-bottom data-[swipe-direction=down]:data-[state=closed]:slide-out-to-bottom',
+        'data-[swipe-direction=down]:inset-x-0 data-[swipe-direction=down]:bottom-0 data-[swipe-direction=down]:mt-24 data-[swipe-direction=down]:mx-auto data-[swipe-direction=down]:max-h-[calc(100dvh-var(--inset-top)-1rem)] data-[swipe-direction=down]:max-w-[min(40rem,calc(100%-var(--inset-left)-var(--inset-right)))] data-[swipe-direction=down]:rounded-t-2xl data-[swipe-direction=down]:data-[state=open]:slide-in-from-bottom data-[swipe-direction=down]:data-[state=closed]:slide-out-to-bottom',
         'data-[swipe-direction=right]:inset-y-0 data-[swipe-direction=right]:right-0 data-[swipe-direction=right]:w-3/4 data-[swipe-direction=right]:sm:max-w-sm data-[swipe-direction=right]:data-[state=open]:slide-in-from-right data-[swipe-direction=right]:data-[state=closed]:slide-out-to-right',
         'data-[swipe-direction=left]:inset-y-0 data-[swipe-direction=left]:left-0 data-[swipe-direction=left]:w-3/4 data-[swipe-direction=left]:sm:max-w-sm data-[swipe-direction=left]:data-[state=open]:slide-in-from-left data-[swipe-direction=left]:data-[state=closed]:slide-out-to-left',
         props.class,

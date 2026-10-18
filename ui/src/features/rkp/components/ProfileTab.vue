@@ -38,14 +38,13 @@ const infoRows = computed(() =>
         { label: t("profile.mode"), value: info.value.mode },
         { label: t("profile.curve"), value: info.value.curve },
         { label: t("profile.publicKey"), value: info.value.public_key_hex, mono: true, copy: true },
-        { label: t("profile.seedHex"), value: info.value.seed_hex, mono: true, copy: true },
       ]
     : [],
 )
 </script>
 
 <template>
-  <div v-if="draft" class="flex flex-col gap-6">
+  <fieldset v-if="draft" :disabled="store.profileBusy" class="flex min-w-0 flex-col gap-6">
     <KeySourceCard v-model="draft" />
     <DeviceCard v-model="draft" />
     <AdvancedCard v-model="draft" />
@@ -54,7 +53,7 @@ const infoRows = computed(() =>
       <KeyValueList :rows="infoRows" />
     </SectionCard>
 
-    <p class="text-muted-foreground px-4 text-xs break-all">
+    <p class="text-muted-foreground px-4 text-sm break-all">
       {{ t("profile.secretsNote", { path: secretsPath }) }}
     </p>
 
@@ -88,5 +87,5 @@ const infoRows = computed(() =>
       destructive
       @confirm="clear.mutate()"
     />
-  </div>
+  </fieldset>
 </template>

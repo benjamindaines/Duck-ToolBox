@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useQuery } from "@tanstack/vue-query"
 import { ArrowUp, File, Folder, FolderOpen } from "@lucide/vue"
-import { computed, ref, useTemplateRef, watch } from "vue"
+import { computed, onScopeDispose, ref, useTemplateRef, watch } from "vue"
 import { useI18n } from "vue-i18n"
 
 import { Button } from "@/components/ui/button"
@@ -14,8 +14,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Item, ItemContent, ItemDescription, ItemMedia, ItemTitle } from "@/components/ui/item"
-import { listFiles } from "@/core/duckd"
+import { Spinner } from "@/components/ui/spinner"
+import { DuckError, listFiles } from "@/core/duckd"
 import { formatBytes, formatDateTime } from "@/core/format"
+import { notifyError } from "@/core/notify"
 
 import QueryState from "./QueryState.vue"
 
@@ -23,12 +25,21 @@ import QueryState from "./QueryState.vue"
 export type PickedFile = { path: string } | { name: string; content: string }
 
 const props = withDefaults(
-  defineProps<{ extension: string; title?: string; start?: string; root?: string }>(),
+  defineProps<{
+    extension: string
+    title?: string
+    start?: string
+    root?: string
+    allowSystem?: boolean
+    maxBytes?: number
+  }>(),
   {
     title: undefined,
     start: "/storage/emulated/0/Download",
     // Like Tricky Addon's picker, browsing stops at shared storage by default.
     root: "/storage/emulated/0",
+    allowSystem: true,
+    maxBytes: 64 * 1024,
   },
 )
 const open = defineModel<boolean>("open", { required: true })
@@ -37,9 +48,16 @@ const emit = defineEmits<{ pick: [file: PickedFile] }>()
 const { t } = useI18n()
 const directory = ref(props.start)
 const input = useTemplateRef<HTMLInputElement>("input")
+const reading = ref(false)
+let readRevision = 0
 
 watch(open, (isOpen) => {
+  readRevision++
+  reading.value = false
   if (isOpen) directory.value = props.start
+})
+onScopeDispose(() => {
+  readRevision++
 })
 
 const listing = useQuery({
@@ -77,10 +95,29 @@ function choose(path: string, isDirectory: boolean) {
 }
 
 async function onSystemFile(event: Event) {
-  const file = (event.target as HTMLInputElement).files?.[0]
+  const element = event.target as HTMLInputElement
+  const file = element.files?.[0]
   if (!file) return
-  emit("pick", { name: file.name, content: await file.text() })
-  open.value = false
+  const revision = ++readRevision
+  reading.value = true
+  try {
+    if (file.size > props.maxBytes) {
+      throw new DuckError(
+        "file_too_large",
+        `Upload limit: ${formatBytes(props.maxBytes)}. Select the file from the device browser instead.`,
+        "system.files",
+      )
+    }
+    const content = await file.text()
+    if (revision !== readRevision || !open.value) return
+    emit("pick", { name: file.name, content })
+    open.value = false
+  } catch (error) {
+    if (revision === readRevision) notifyError(error)
+  } finally {
+    if (revision === readRevision) reading.value = false
+    element.value = ""
+  }
 }
 </script>
 
@@ -154,8 +191,8 @@ async function onSystemFile(event: Event) {
       </div>
 
       <DialogFooter class="flex-row justify-between gap-2 sm:justify-between">
-        <Button variant="outline" @click="input?.click()">
-          <FolderOpen />
+        <Button v-if="allowSystem" variant="outline" :disabled="reading" @click="input?.click()">
+          <Spinner v-if="reading" /><FolderOpen v-else />
           {{ t("core.files.system") }}
         </Button>
         <Button variant="ghost" @click="open = false">{{ t("core.actions.cancel") }}</Button>

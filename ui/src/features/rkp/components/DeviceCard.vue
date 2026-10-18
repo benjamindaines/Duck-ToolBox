@@ -97,7 +97,7 @@ function update(id: string, next: unknown) {
     <div class="flex flex-col gap-5">
       <div class="bg-muted rounded-md p-4">
         <p class="text-base">{{ draft.device.brand }} {{ draft.device.model }}</p>
-        <p class="text-muted-foreground font-mono text-xs">
+        <p class="text-muted-foreground font-mono text-sm">
           {{ draft.device.device }} · Android {{ draft.device.os_version }} ·
           {{ draft.device.system_patch_level }}
         </p>

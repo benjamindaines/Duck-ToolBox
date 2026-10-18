@@ -55,7 +55,7 @@ const report = computed(() => {
         <KeyValueList :rows="rows" />
         <pre
           dir="ltr"
-          class="bg-muted max-h-64 min-w-0 overflow-auto rounded-lg p-3 font-mono text-xs leading-5 whitespace-pre-wrap"
+          class="bg-muted max-h-64 min-w-0 overflow-auto rounded-lg p-3 font-mono text-sm leading-6 whitespace-pre-wrap"
           >{{ report }}</pre>
       </div>
       <DialogFooter>

@@ -78,7 +78,9 @@ function setDevice(key: DeviceKey, value: string | number, numeric?: boolean) {
             <FieldLabel for="vbmeta">{{ t("profile.vbmetaDigest") }}</FieldLabel>
             <Input id="vbmeta" v-model="draft.device.vbmeta_digest" class="font-mono text-sm" />
           </Field>
-          <div class="grid grid-cols-2 gap-x-3 gap-y-5">
+          <div
+            class="grid grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] gap-x-3 gap-y-5"
+          >
             <Field v-for="field in deviceFields" :key="field.key">
               <FieldLabel :for="`device-${field.key}`">{{ field.label }}</FieldLabel>
               <Input

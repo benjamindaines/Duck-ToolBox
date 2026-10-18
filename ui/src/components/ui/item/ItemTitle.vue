@@ -10,7 +10,7 @@ const props = defineProps<{
 <template>
   <div
     data-slot="item-title"
-    :class="cn('flex w-fit items-center gap-2 text-base leading-6', props.class)"
+    :class="cn('flex min-w-0 max-w-full items-center gap-2 text-base leading-6 [overflow-wrap:anywhere]', props.class)"
   >
     <slot />
   </div>

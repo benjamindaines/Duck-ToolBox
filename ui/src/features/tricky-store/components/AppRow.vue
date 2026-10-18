@@ -5,11 +5,11 @@ import { useTemplateRef } from "vue"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
 import AppIcon from "@/core/components/AppIcon.vue"
 
 import type { TargetMode } from "../api"
 import { useTrickyI18n } from "../i18n"
+import AppSelection from "./AppSelection.vue"
 
 const props = defineProps<{
   packageName: string
@@ -30,12 +30,13 @@ let longPressed = false
 // Tricky Addon opens the mode dialog on long press (context menu) of a selected app.
 onLongPress(
   row,
-  () => {
+  (event) => {
+    if (event.target instanceof Element && event.target.closest("button")) return
     if (props.mode === null || !props.tunable) return
     longPressed = true
     emit("tune")
   },
-  { delay: 450, modifiers: { prevent: true } },
+  { delay: 450 },
 )
 
 function click() {
@@ -56,21 +57,23 @@ const markers: Record<TargetMode, string> = { auto: "", generate: "!", hack: "?"
     tabindex="0"
     :aria-checked="mode !== null"
     :class="[
-      'state-layer focus-visible:ring-ring/50 relative flex min-h-18 cursor-pointer items-center gap-4 py-3 ps-4 pe-3 transition-[border-radius,background-color] duration-350 ease-spring-fast outline-none select-none focus-visible:ring-3 [contain-intrinsic-size:auto_72px] [content-visibility:auto]',
+      'state-layer focus-visible:ring-ring/50 relative grid min-h-18 cursor-pointer grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3 gap-y-2 py-3 ps-4 pe-3 transition-[border-radius,background-color] duration-350 ease-spring-fast outline-none select-none focus-visible:ring-3 @min-[18rem]:grid-cols-[auto_minmax(0,1fr)_auto] @min-[18rem]:items-center',
       // Material 3 Expressive segmented list: a selected row turns fully round.
-      mode !== null
-        ? 'bg-secondary rounded-lg'
-        : 'bg-card rounded-xs first:rounded-t-lg last:rounded-b-lg',
+      mode !== null ? 'bg-secondary rounded-lg' : 'bg-card rounded-xs',
     ]"
     @click="click"
+    @pointerdown="longPressed = false"
     @contextmenu.prevent
-    @keydown.space.prevent="emit('toggle')"
-    @keydown.enter.prevent="emit('toggle')"
+    @keydown.space.self.prevent="emit('toggle')"
+    @keydown.enter.self.prevent="emit('toggle')"
   >
     <AppIcon :package-name="packageName" :label="label" />
     <div class="min-w-0 flex-1">
-      <div class="truncate text-base">{{ label }}</div>
-      <div dir="ltr" class="text-muted-foreground truncate font-mono text-xs rtl:text-right">
+      <div class="text-base leading-6 [overflow-wrap:anywhere]">{{ label }}</div>
+      <div
+        dir="ltr"
+        class="text-muted-foreground font-mono text-sm leading-5 [overflow-wrap:anywhere] rtl:text-right"
+      >
         {{ packageName }}
       </div>
       <div
@@ -87,20 +90,19 @@ const markers: Record<TargetMode, string> = { auto: "", generate: "!", hack: "?"
         <Badge v-if="system" variant="outline">{{ t("list.system") }}</Badge>
       </div>
     </div>
-    <Button
-      v-if="mode !== null && tunable"
-      variant="ghost"
-      size="icon"
-      :aria-label="t('list.tune', { name: label })"
-      @click.stop="emit('tune')"
+    <div
+      class="col-start-2 flex items-center justify-end gap-2 @min-[18rem]:col-start-3 @min-[18rem]:row-start-1"
     >
-      <SlidersHorizontal class="size-5" />
-    </Button>
-    <Checkbox
-      :model-value="mode !== null"
-      tabindex="-1"
-      aria-hidden="true"
-      class="pointer-events-none"
-    />
+      <Button
+        v-if="mode !== null && tunable"
+        variant="ghost"
+        size="icon"
+        :aria-label="t('list.tune', { name: label })"
+        @click.stop="emit('tune')"
+      >
+        <SlidersHorizontal class="size-5" />
+      </Button>
+      <AppSelection :checked="mode !== null" />
+    </div>
   </div>
 </template>

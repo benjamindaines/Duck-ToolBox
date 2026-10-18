@@ -44,6 +44,7 @@ function leave() {
 
 useEventListener(window, "message", (event: MessageEvent) => {
   if (event.origin !== REPO_ORIGIN || event.source !== frame.value?.contentWindow) return
+  if (!event.data || typeof event.data !== "object") return
   const message = event.data as { type?: string; url?: unknown; identity?: unknown }
   switch (message.type) {
     case "handshake_ack":

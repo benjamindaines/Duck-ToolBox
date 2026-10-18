@@ -4,7 +4,6 @@ import { computed, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
   DialogContent,
@@ -14,11 +13,13 @@ import {
 } from "@/components/ui/dialog"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import AppIcon from "@/core/components/AppIcon.vue"
+import VirtualList from "@/core/components/VirtualList.vue"
 import { useRouteModal } from "@/core/modal"
 
 import { useTrickyI18n } from "../i18n"
 import { matches } from "../selection"
 import { useTrickyStore } from "../store"
+import AppSelection from "./AppSelection.vue"
 
 const props = defineProps<{ labels: ReadonlyMap<string, string> }>()
 const { open, close } = useRouteModal("system-apps")
@@ -84,31 +85,36 @@ function save() {
           :placeholder="t('ta.search_bar_search_placeholder')"
         />
       </InputGroup>
-      <div class="-mx-3 min-h-0 flex-1 overflow-y-auto">
-        <div
-          v-for="row in rows"
-          :key="row.packageName"
-          role="checkbox"
-          tabindex="0"
-          :aria-checked="checked.has(row.packageName)"
-          class="state-layer focus-visible:ring-ring/50 relative flex min-h-16 cursor-pointer items-center gap-4 rounded-md px-3 py-2 outline-none select-none focus-visible:ring-3 [contain-intrinsic-size:auto_64px] [content-visibility:auto]"
-          @click="toggle(row.packageName)"
-          @keydown.space.prevent="toggle(row.packageName)"
-        >
-          <AppIcon :package-name="row.packageName" :label="row.label" />
-          <div class="min-w-0 flex-1">
-            <div class="truncate text-base">{{ row.label }}</div>
-            <div dir="ltr" class="text-muted-foreground truncate font-mono text-xs rtl:text-right">
-              {{ row.packageName }}
+      <VirtualList
+        :items="rows"
+        :item-key="(row) => row.packageName"
+        :estimate-size="64"
+        class="-mx-3"
+      >
+        <template #default="{ item: row }">
+          <div
+            role="checkbox"
+            tabindex="0"
+            :aria-checked="checked.has(row.packageName)"
+            class="state-layer focus-visible:ring-ring/50 relative flex min-h-16 cursor-pointer items-center gap-4 rounded-md px-3 py-2 outline-none select-none focus-visible:ring-3"
+            @click="toggle(row.packageName)"
+            @keydown.space.prevent="toggle(row.packageName)"
+            @keydown.enter.prevent="toggle(row.packageName)"
+          >
+            <AppIcon :package-name="row.packageName" :label="row.label" />
+            <div class="min-w-0 flex-1">
+              <div class="text-base leading-6 [overflow-wrap:anywhere]">{{ row.label }}</div>
+              <div
+                dir="ltr"
+                class="text-muted-foreground font-mono text-sm leading-5 [overflow-wrap:anywhere] rtl:text-right"
+              >
+                {{ row.packageName }}
+              </div>
             </div>
+            <AppSelection :checked="checked.has(row.packageName)" />
           </div>
-          <Checkbox
-            :model-value="checked.has(row.packageName)"
-            tabindex="-1"
-            class="pointer-events-none"
-          />
-        </div>
-      </div>
+        </template>
+      </VirtualList>
       <DialogFooter class="flex-row">
         <Button variant="outline" class="flex-1" @click="close()">{{
           global.t("core.actions.cancel")

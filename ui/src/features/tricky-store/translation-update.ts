@@ -52,7 +52,10 @@ export function parseStrings(xml: string): Map<string, string> {
 }
 
 async function download(path: string): Promise<string> {
-  const response = await fetch(`${TRANSLATIONS_SOURCE}/${path}`, { cache: "no-store" })
+  const response = await fetch(`${TRANSLATIONS_SOURCE}/${path}`, {
+    cache: "no-store",
+    signal: AbortSignal.timeout(20_000),
+  })
   if (!response.ok) throw new Error(`${path}: HTTP ${response.status}`)
   return response.text()
 }

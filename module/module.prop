@@ -1,7 +1,7 @@
 id=duck-toolbox
 name=Duck ToolBox
-version=0.1.3-stable
-versionCode=61
+version=0.1.6-stable
+versionCode=77
 author=Eltavine & KOW & MhmRdd
 description=Android attestation toolbox: Tricky Store / TEESimulator / OhMyKeymint manager (a full Tricky Addon port), RKP workbench and Qualcomm device ID provisioning, in one WebUI.
 updateJson=https://raw.githubusercontent.com/eltavine/Duck-ToolBox/main/update.json

@@ -586,7 +586,7 @@ dependencies = [
 
 [[package]]
 name = "duck-core"
-version = "0.1.3-stable"
+version = "0.1.6-stable"
 dependencies = [
  "anyhow",
  "clap",
@@ -596,7 +596,7 @@ dependencies = [
 
 [[package]]
 name = "duck-device-ids"
-version = "0.1.3-stable"
+version = "0.1.6-stable"
 dependencies = [
  "anyhow",
  "ciborium",
@@ -612,7 +612,7 @@ dependencies = [
 
 [[package]]
 name = "duck-platform"
-version = "0.1.3-stable"
+version = "0.1.6-stable"
 dependencies = [
  "anyhow",
  "duck-core",
@@ -624,7 +624,7 @@ dependencies = [
 
 [[package]]
 name = "duck-rkp"
-version = "0.1.3-stable"
+version = "0.1.6-stable"
 dependencies = [
  "aes",
  "aes-gcm",
@@ -639,13 +639,19 @@ dependencies = [
  "getrandom 0.4.3",
  "hex",
  "hkdf",
+ "libc",
  "p256",
  "p384",
+ "quick-xml",
+ "rcgen",
  "reqwest",
+ "rustls",
  "serde",
  "serde_json",
  "sha2",
+ "tempfile",
  "thiserror",
+ "tokio",
  "toml",
  "x25519-dalek",
  "x509-cert",
@@ -654,7 +660,7 @@ dependencies = [
 
 [[package]]
 name = "duck-rkp-device"
-version = "0.1.3-stable"
+version = "0.1.6-stable"
 dependencies = [
  "anyhow",
  "base64ct",
@@ -684,7 +690,7 @@ dependencies = [
 
 [[package]]
 name = "duck-system"
-version = "0.1.3-stable"
+version = "0.1.6-stable"
 dependencies = [
  "anyhow",
  "clap",
@@ -699,7 +705,7 @@ dependencies = [
 
 [[package]]
 name = "duck-tee-attestation"
-version = "0.1.3-stable"
+version = "0.1.6-stable"
 dependencies = [
  "anyhow",
  "base64ct",
@@ -724,7 +730,7 @@ dependencies = [
 
 [[package]]
 name = "duck-tricky-store"
-version = "0.1.3-stable"
+version = "0.1.6-stable"
 dependencies = [
  "anyhow",
  "base64ct",
@@ -750,7 +756,7 @@ dependencies = [
 
 [[package]]
 name = "duckd"
-version = "0.1.3-stable"
+version = "0.1.6-stable"
 dependencies = [
  "anyhow",
  "clap",

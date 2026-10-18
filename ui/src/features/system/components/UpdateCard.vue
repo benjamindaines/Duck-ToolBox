@@ -55,7 +55,7 @@ const status = computed(() => {
         </Select>
       </Field>
 
-      <div v-if="updateChannel !== 'off'" class="flex items-center justify-between gap-3">
+      <div v-if="updateChannel !== 'off'" class="flex flex-wrap items-center justify-between gap-3">
         <p
           class="text-sm"
           :class="check.data.value?.available ? 'font-medium' : 'text-muted-foreground'"

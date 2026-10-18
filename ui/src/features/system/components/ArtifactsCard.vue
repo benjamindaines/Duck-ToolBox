@@ -48,7 +48,9 @@ const artifacts = useQuery({ queryKey: ["system.artifacts"], queryFn: systemApi.
         <Item v-for="file in artifacts.data.value.outputs.slice(0, 12)" :key="file.path" size="sm">
           <ItemMedia variant="icon"><FileText /></ItemMedia>
           <ItemContent class="min-w-0">
-            <ItemTitle class="w-full truncate font-mono text-xs">{{ file.name }}</ItemTitle>
+            <ItemTitle class="w-full font-mono text-sm leading-6 [overflow-wrap:anywhere]">{{
+              file.name
+            }}</ItemTitle>
             <ItemDescription>
               {{ formatBytes(file.size) }} · {{ formatRelative(file.modified_unix) }}
             </ItemDescription>

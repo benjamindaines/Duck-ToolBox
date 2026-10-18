@@ -77,6 +77,68 @@ test.describe("target list", () => {
 })
 
 test.describe("keybox", () => {
+  test("rejects oversized picker uploads and allows selecting another file", async ({
+    page,
+    open,
+  }) => {
+    await open("/tricky-store/keybox")
+    await page.getByRole("button", { name: "Import", exact: true }).click()
+    const dialog = page.getByRole("dialog")
+    const input = dialog.locator('input[type="file"]')
+    await input.setInputFiles({
+      name: "large.json",
+      mimeType: "application/json",
+      buffer: Buffer.alloc(65 * 1024, " "),
+    })
+    await expect(page.getByText(/Upload limit:/)).toBeVisible()
+    await expect(dialog).toBeVisible()
+    await input.setInputFiles({
+      name: "providers.json",
+      mimeType: "application/json",
+      buffer: Buffer.from("[]"),
+    })
+    await expect(dialog).toBeHidden()
+    await expect(page.getByText("Config imported", { exact: true })).toBeVisible()
+  })
+
+  test("ignores a picker read completed after cancellation", async ({ page, open }) => {
+    await open("/tricky-store/keybox")
+    await page.getByRole("button", { name: "Import", exact: true }).click()
+    await page.evaluate(() => {
+      const scope = window as unknown as Record<string, unknown>
+      const host = scope.ksu as { exec: (shell: string, options: string, callback: string) => void }
+      const original = host.exec
+      scope.importCalls = 0
+      host.exec = (shell, options, callback) => {
+        if (shell.includes("'providers' 'import-content'"))
+          scope.importCalls = Number(scope.importCalls) + 1
+        original(shell, options, callback)
+      }
+      File.prototype.text = () =>
+        new Promise<string>((resolve) => {
+          scope.finishRead = resolve
+        })
+    })
+    const dialog = page.getByRole("dialog")
+    await dialog.locator('input[type="file"]').setInputFiles({
+      name: "providers.json",
+      mimeType: "application/json",
+      buffer: Buffer.from("[]"),
+    })
+    await expect(dialog.getByRole("button", { name: "System file picker" })).toBeDisabled()
+    await dialog.getByRole("button", { name: "Cancel" }).click()
+    const calls = await page.evaluate(async () => {
+      const scope = window as unknown as {
+        finishRead: (content: string) => void
+        importCalls: number
+      }
+      scope.finishRead("[]")
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      return scope.importCalls
+    })
+    expect(calls).toBe(0)
+  })
+
   test("installs the AOSP keybox", async ({ page, open }) => {
     await open("/tricky-store/keybox")
     await page.getByRole("button", { name: /AOSP/ }).click()

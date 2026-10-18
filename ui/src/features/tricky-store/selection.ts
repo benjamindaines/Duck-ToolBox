@@ -36,7 +36,9 @@ export function toSaveRequest(draft: Draft): SaveRequest {
     targets,
     default_policy: Object.fromEntries(byKey(Object.entries(draft.defaultPolicy))),
     per_app_policy: Object.fromEntries(
-      byKey(draft.perApp).filter(([name]) => draft.targets.has(name)),
+      byKey(draft.perApp)
+        .filter(([name]) => draft.targets.has(name))
+        .map(([name, policy]) => [name, { ...policy }]),
     ),
     system_apps: [...draft.systemApps].sort(),
     auto_add_new_apps: draft.autoAdd,
@@ -48,6 +50,55 @@ export function draftKey(draft: Draft): string {
   return JSON.stringify(toSaveRequest(draft))
 }
 
+export function samePolicy(left: Policy, right: Policy): boolean {
+  const keys = Object.keys(left)
+  return keys.length === Object.keys(right).length && keys.every((key) => left[key] === right[key])
+}
+
+/** Compare saved semantics without sorting and serializing the whole draft on every tap. */
+export function sameDraft(left: Draft, right: Draft): boolean {
+  if (
+    left.autoAdd !== right.autoAdd ||
+    left.targets.size !== right.targets.size ||
+    left.systemApps.size !== right.systemApps.size ||
+    !samePolicy(left.defaultPolicy, right.defaultPolicy)
+  )
+    return false
+  for (const name of left.systemApps) if (!right.systemApps.has(name)) return false
+  for (const [name, mode] of left.targets) {
+    if (right.targets.get(name) !== mode) return false
+    const a = left.perApp.get(name)
+    const b = right.perApp.get(name)
+    if (a || b) {
+      if (!a || !b || !samePolicy(a, b)) return false
+    }
+  }
+  return true
+}
+
+/** Sorted catalog, independent of live selection and filtering. */
+export function sortedApps(
+  status: Status,
+  packages: readonly string[],
+  labels: ReadonlyMap<string, string>,
+): AppItem[] {
+  const saved = new Set(status.config.targets.map((target) => target.package_name))
+  const known = new Map(status.packages.map((entry) => [entry.package_name, entry.system]))
+  return packages
+    .map((packageName) => ({
+      packageName,
+      label: labels.get(packageName) || packageName,
+      system: known.get(packageName) ?? false,
+      saved: saved.has(packageName),
+    }))
+    .sort(
+      (a, b) =>
+        Number(b.saved) - Number(a.saved) ||
+        a.label.localeCompare(b.label) ||
+        a.packageName.localeCompare(b.packageName),
+    )
+}
+
 /**
  * Apps shown in the target list: user apps, system apps the user added and anything already
  * targeted. Selected apps come first, then by label, like Tricky Addon.
@@ -57,21 +108,11 @@ export function listedApps(
   draft: Draft,
   labels: ReadonlyMap<string, string>,
 ): AppItem[] {
-  const saved = new Set(status.config.targets.map((target) => target.package_name))
-  const known = new Map(status.packages.map((entry) => [entry.package_name, entry.system]))
-  for (const name of draft.targets.keys()) if (!known.has(name)) known.set(name, false)
-
-  const items: AppItem[] = []
-  for (const [packageName, system] of known) {
-    if (system && !draft.systemApps.has(packageName) && !draft.targets.has(packageName)) continue
-    const label = labels.get(packageName) || packageName
-    items.push({ packageName, label, system, saved: saved.has(packageName) })
-  }
-  return items.sort(
-    (a, b) =>
-      Number(b.saved) - Number(a.saved) ||
-      a.label.localeCompare(b.label) ||
-      a.packageName.localeCompare(b.packageName),
+  const packages = new Set(status.packages.map((entry) => entry.package_name))
+  for (const name of draft.targets.keys()) packages.add(name)
+  return sortedApps(status, [...packages], labels).filter(
+    ({ packageName, system }) =>
+      !system || draft.systemApps.has(packageName) || draft.targets.has(packageName),
   )
 }
 

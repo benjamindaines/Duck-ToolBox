@@ -4,6 +4,7 @@ import type { HostModule, InstalledPackage, RootBridge } from "./types"
 
 interface KsuGlobal {
   moduleInfo?: () => string
+  spawn?: (command: string, args: string, options: string, callback: string) => void
   exit?: () => void
 }
 
@@ -17,6 +18,8 @@ function ksuGlobal(): KsuGlobal | undefined {
  * that falls back to `pm` when the manager has no package API.
  */
 export function createKernelSuBridge(): RootBridge {
+  let module: HostModule | null | undefined
+
   return {
     available: true,
 
@@ -24,7 +27,51 @@ export function createKernelSuBridge(): RootBridge {
       // `env` and `cwd` are deliberately never used: the manager exports env values
       // unquoted (WebViewInterface.processOptions), so callers put quoted values in the
       // command itself.
-      return exec(command)
+      const host = ksuGlobal()
+      // The callback form of native exec still waits for the entire shell job. Spawn
+      // enqueues it instead, so a network request cannot freeze the WebView.
+      const spawn = host?.spawn
+      if (typeof spawn !== "function") return exec(command)
+      return new Promise((resolve, reject) => {
+        const scope = globalThis as unknown as Record<string, unknown>
+        const callback = `duck_command_${crypto.randomUUID().replaceAll("-", "")}`
+        const stdout: string[] = []
+        const stderr: string[] = []
+        let cleanupTimer: ReturnType<typeof setTimeout> | undefined
+        const cleanup = () => {
+          clearTimeout(cleanupTimer)
+          delete scope[callback]
+        }
+        // Install handlers before calling native code: launching can fail synchronously.
+        scope[callback] = {
+          stdout: { emit: (_event: string, line: string) => stdout.push(line) },
+          stderr: { emit: (_event: string, line: string) => stderr.push(line) },
+          emit(event: string, value: number | Error) {
+            if (event === "exit") {
+              resolve({
+                errno: value as number,
+                stdout: stdout.join("\n"),
+                stderr: stderr.join("\n"),
+              })
+              // KernelSU posts a companion error after a nonzero exit. Keep the
+              // channel until then, with bounded cleanup for hosts that only emit exit.
+              if (value === 0) cleanup()
+              else cleanupTimer = setTimeout(cleanup, 1000)
+            } else if (event === "error") {
+              cleanup()
+              reject(value)
+            }
+          },
+        }
+        try {
+          // Native spawn appends a space after command, even with no arguments. The
+          // newline keeps that space off a possible here-document's closing delimiter.
+          spawn.call(host, `${command}\n`, "[]", "{}", callback)
+        } catch (error) {
+          cleanup()
+          reject(error)
+        }
+      })
     },
 
     toast(message) {
@@ -32,16 +79,21 @@ export function createKernelSuBridge(): RootBridge {
     },
 
     hostModule(): HostModule | null {
+      // The hosting module is fixed for this WebUI session. Reading it lists every
+      // installed module through a synchronous native call.
+      if (module !== undefined) return module
+      module = null
       try {
         const raw = ksuGlobal()?.moduleInfo?.()
         if (!raw) return null
         const info = JSON.parse(raw) as { id?: unknown; moduleDir?: unknown }
         const dir = typeof info.moduleDir === "string" ? info.moduleDir : ""
         const id = typeof info.id === "string" ? info.id : dir.split("/").pop() || ""
-        return dir || id ? { id, dir: dir || `/data/adb/modules/${id}` } : null
+        module = dir || id ? { id, dir: dir || `/data/adb/modules/${id}` } : null
       } catch {
-        return null
+        // Unsupported hosts keep the default module directory for this session.
       }
+      return module
     },
 
     async listPackages(kind) {
@@ -52,20 +104,31 @@ export function createKernelSuBridge(): RootBridge {
       }
     },
 
-    async packagesInfo(packageNames) {
-      if (packageNames.length === 0) return []
-      try {
-        const infos = await getPackagesInfo(packageNames)
-        return (Array.isArray(infos) ? infos : [infos])
-          .filter((info) => typeof info?.packageName === "string" && !("error" in info))
-          .map<InstalledPackage>((info) => ({
-            packageName: info.packageName,
-            label: info.appLabel || info.packageName,
-            system: Boolean(info.isSystem),
-          }))
-      } catch {
-        return []
+    async packagesInfo(packageNames, signal) {
+      const result: InstalledPackage[] = []
+      // The native method is synchronous despite the library's Promise API. Give the
+      // WebView a turn before each bounded batch, including the first, so it can paint.
+      for (let offset = 0; offset < packageNames.length; offset += 24) {
+        signal?.throwIfAborted()
+        await new Promise<void>((resolve) => setTimeout(resolve, 0))
+        signal?.throwIfAborted()
+        try {
+          const infos = await getPackagesInfo(packageNames.slice(offset, offset + 24))
+          result.push(
+            ...(Array.isArray(infos) ? infos : [infos])
+              .filter((info) => typeof info?.packageName === "string" && !("error" in info))
+              .map<InstalledPackage>((info) => ({
+                packageName: info.packageName,
+                label: info.appLabel || info.packageName,
+                system: Boolean(info.isSystem),
+              })),
+          )
+        } catch {
+          // Unsupported hosts keep package names; preserve any batches already loaded.
+          break
+        }
       }
+      return result
     },
 
     iconUrl(packageName) {

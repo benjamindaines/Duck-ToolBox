@@ -28,8 +28,11 @@ export interface RootBridge {
   /** The module whose WebUI is showing; may be another module linking to our webroot. */
   hostModule(): HostModule | null
   listPackages(kind: "user" | "system" | "all"): Promise<string[]>
-  /** Labels for the given packages. Unknown packages are simply missing from the result. */
-  packagesInfo(packageNames: string[]): Promise<InstalledPackage[]>
+  /**
+   * Labels for the given packages; unknown packages are omitted. Aborting stops queued
+   * metadata batches, but an in-progress native call is synchronous.
+   */
+  packagesInfo(packageNames: string[], signal?: AbortSignal): Promise<InstalledPackage[]>
   /** URL that renders an app icon, or null when the host cannot serve icons. */
   iconUrl(packageName: string): string | null
   exit(): void

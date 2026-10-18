@@ -107,16 +107,27 @@ async function loadLocale(locale: string, registered: readonly FeatureDefinition
   i18n.global.mergeLocaleMessage(locale, bundle)
 }
 
-const loaded = new Set<string>()
+const loading = new Map<string, Promise<void>>()
+let localeRevision = 0
 
 /** Loads the locale (plus the English fallback) for the shell and every feature. */
 export async function applyLocale(locale: string): Promise<void> {
+  const revision = ++localeRevision
   const registered = features()
-  for (const needed of new Set([FALLBACK_LOCALE, locale])) {
-    if (loaded.has(needed)) continue
-    await loadLocale(needed, registered)
-    loaded.add(needed)
-  }
+  await Promise.all(
+    [...new Set([FALLBACK_LOCALE, locale])].map((needed) => {
+      let pending = loading.get(needed)
+      if (!pending) {
+        pending = loadLocale(needed, registered).catch((error: unknown) => {
+          loading.delete(needed)
+          throw error
+        })
+        loading.set(needed, pending)
+      }
+      return pending
+    }),
+  )
+  if (revision !== localeRevision) return
   i18n.global.locale.value = locale
   document.documentElement.lang = locale
   document.documentElement.dir = isRtl(locale) ? "rtl" : "ltr"

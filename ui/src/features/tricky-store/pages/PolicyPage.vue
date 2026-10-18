@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useMutation } from "@tanstack/vue-query"
+import { useMutation, useQueryClient } from "@tanstack/vue-query"
 import { Save } from "@lucide/vue"
 import { ref, watch } from "vue"
 
@@ -12,12 +12,13 @@ import { notifySuccess } from "@/core/notify"
 import type { Policy } from "../api"
 import PolicyEditor from "../components/PolicyEditor.vue"
 import { useTrickyI18n } from "../i18n"
-import { useStatusQuery } from "../queries"
+import { STATUS_KEY, useStatusQuery } from "../queries"
 import { useTrickyStore } from "../store"
 
 const { t } = useTrickyI18n()
 const store = useTrickyStore()
 const status = useStatusQuery()
+const client = useQueryClient()
 const policy = ref<Policy>({})
 
 watch(
@@ -32,9 +33,9 @@ watch(
 
 const save = useMutation({
   mutationFn: async () => {
+    await client.cancelQueries({ queryKey: STATUS_KEY })
     const saved = await store.saveOnly({ defaultPolicy: policy.value })
-    const next = await status.refetch()
-    if (next.data) store.load(next.data)
+    client.setQueryData(STATUS_KEY, store.status)
     return saved
   },
   onSuccess: (saved) =>
@@ -44,28 +45,30 @@ const save = useMutation({
 
 <template>
   <div class="flex flex-col gap-6 p-4">
-    <QueryState
-      :loading="status.isPending.value"
-      :error="status.error.value"
-      @retry="status.refetch()"
-    >
-      <p v-if="!store.schema?.default_policy.length" class="text-muted-foreground px-4 text-sm">
-        {{ t("policy.none") }}
-      </p>
-      <template v-else>
-        <SectionCard :description="t('policy.hint')">
-          <PolicyEditor
-            v-model="policy"
-            :fields="store.schema.default_policy"
-            id-prefix="default-policy"
-          />
-        </SectionCard>
-        <Button size="lg" :disabled="save.isPending.value" @click="save.mutate()">
-          <Spinner v-if="save.isPending.value" />
-          <Save v-else />
-          {{ t("ta.functional_button_save") }}
-        </Button>
-      </template>
-    </QueryState>
+    <fieldset :disabled="save.isPending.value || store.saving" class="flex min-w-0 flex-col gap-6">
+      <QueryState
+        :loading="status.isPending.value"
+        :error="status.error.value"
+        @retry="status.refetch()"
+      >
+        <p v-if="!store.schema?.default_policy.length" class="text-muted-foreground px-4 text-sm">
+          {{ t("policy.none") }}
+        </p>
+        <template v-else>
+          <SectionCard :description="t('policy.hint')">
+            <PolicyEditor
+              v-model="policy"
+              :fields="store.schema.default_policy"
+              id-prefix="default-policy"
+            />
+          </SectionCard>
+          <Button size="lg" :disabled="save.isPending.value" @click="save.mutate()">
+            <Spinner v-if="save.isPending.value" />
+            <Save v-else />
+            {{ t("ta.functional_button_save") }}
+          </Button>
+        </template>
+      </QueryState>
+    </fieldset>
   </div>
 </template>

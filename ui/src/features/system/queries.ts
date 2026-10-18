@@ -28,5 +28,9 @@ export function useUpdateCheck(enabled = computed(() => true)) {
     queryFn: () => systemApi.checkUpdate(updateChannel.value === "canary" ? "canary" : "stable"),
     enabled: computed(() => bridge().available && updateChannel.value !== "off" && enabled.value),
     staleTime: 30 * 60_000,
+    // A failed background check must not restart on every return to home. The update
+    // card still offers an explicit retry, and a different channel gets its own query.
+    retryOnMount: false,
+    refetchOnMount: (query) => query.state.status !== "error",
   })
 }

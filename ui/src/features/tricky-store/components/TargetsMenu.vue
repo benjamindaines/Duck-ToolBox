@@ -27,7 +27,7 @@ import {
 
 import { useTrickyI18n } from "../i18n"
 
-defineProps<{ denylist: boolean; autoAdd: boolean; hasPolicy: boolean }>()
+defineProps<{ denylist: boolean; autoAdd: boolean; hasPolicy: boolean; saving: boolean }>()
 const emit = defineEmits<{
   selectAll: []
   deselectAll: []
@@ -56,7 +56,7 @@ const go = (path: string) => router.push(`/tricky-store/${path}`)
       <DropdownMenuItem @select="emit('deselectAll')"
         ><SquareDashed />{{ t("list.deselectAll") }}</DropdownMenuItem
       >
-      <DropdownMenuItem @select="emit('refresh')"
+      <DropdownMenuItem :disabled="saving" @select="emit('refresh')"
         ><RefreshCw />{{ t("list.refresh") }}</DropdownMenuItem
       >
       <DropdownMenuSeparator />
@@ -71,6 +71,7 @@ const go = (path: string) => router.push(`/tricky-store/${path}`)
       >
       <DropdownMenuCheckboxItem
         :model-value="autoAdd"
+        :disabled="saving"
         @update:model-value="emit('autoAdd', $event)"
       >
         {{ t("list.autoAdd") }}

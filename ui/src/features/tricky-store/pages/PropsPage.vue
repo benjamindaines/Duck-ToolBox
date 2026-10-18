@@ -60,42 +60,47 @@ const save = useMutation({
 
 <template>
   <div class="flex flex-col gap-6 p-4">
-    <QueryState
-      :loading="status.isPending.value"
-      :error="status.error.value"
-      @retry="status.refetch()"
+    <fieldset
+      :disabled="save.isPending.value || status.isFetching.value"
+      class="flex min-w-0 flex-col gap-6"
     >
-      <SectionCard>
-        <div class="flex flex-col gap-6">
-          <Field orientation="horizontal">
-            <FieldContent>
-              <FieldLabel for="prop-handler">{{ t("ta.prop_handler") }}</FieldLabel>
-              <FieldDescription>{{ t("props.handlerHint") }}</FieldDescription>
-            </FieldContent>
-            <Switch id="prop-handler" v-model="handler" />
-          </Field>
-          <Field :data-invalid="invalid || undefined">
-            <FieldLabel for="boot-hash">{{ t("ta.boot_hash_title") }}</FieldLabel>
-            <Textarea
-              id="boot-hash"
-              v-model="bootHash"
-              rows="3"
-              class="font-mono text-sm"
-              placeholder="241890bd44131d34c077cb01a0c3ea1ff68533b21e9d83b3f3adca6663c3d443"
-              autocapitalize="off"
-              spellcheck="false"
-              :aria-invalid="invalid"
-            />
-            <FieldError v-if="invalid">{{ t("props.invalidHash") }}</FieldError>
-            <FieldDescription v-else>{{ t("props.bootHashHint") }}</FieldDescription>
-          </Field>
-        </div>
-      </SectionCard>
-      <Button size="lg" :disabled="invalid || save.isPending.value" @click="save.mutate()">
-        <Spinner v-if="save.isPending.value" />
-        <Save v-else />
-        {{ t("ta.functional_button_save") }}
-      </Button>
-    </QueryState>
+      <QueryState
+        :loading="status.isPending.value"
+        :error="status.error.value"
+        @retry="status.refetch()"
+      >
+        <SectionCard>
+          <div class="flex flex-col gap-6">
+            <Field orientation="horizontal">
+              <FieldContent>
+                <FieldLabel for="prop-handler">{{ t("ta.prop_handler") }}</FieldLabel>
+                <FieldDescription>{{ t("props.handlerHint") }}</FieldDescription>
+              </FieldContent>
+              <Switch id="prop-handler" v-model="handler" />
+            </Field>
+            <Field :data-invalid="invalid || undefined">
+              <FieldLabel for="boot-hash">{{ t("ta.boot_hash_title") }}</FieldLabel>
+              <Textarea
+                id="boot-hash"
+                v-model="bootHash"
+                rows="3"
+                class="font-mono text-sm"
+                placeholder="241890bd44131d34c077cb01a0c3ea1ff68533b21e9d83b3f3adca6663c3d443"
+                autocapitalize="off"
+                spellcheck="false"
+                :aria-invalid="invalid"
+              />
+              <FieldError v-if="invalid">{{ t("props.invalidHash") }}</FieldError>
+              <FieldDescription v-else>{{ t("props.bootHashHint") }}</FieldDescription>
+            </Field>
+          </div>
+        </SectionCard>
+        <Button size="lg" :disabled="invalid || save.isPending.value" @click="save.mutate()">
+          <Spinner v-if="save.isPending.value" />
+          <Save v-else />
+          {{ t("ta.functional_button_save") }}
+        </Button>
+      </QueryState>
+    </fieldset>
   </div>
 </template>

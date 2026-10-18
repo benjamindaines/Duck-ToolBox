@@ -77,7 +77,7 @@ const description = computed(() => {
       <div class="flex items-center gap-3">
         <div class="min-w-0 flex-1">
           <div class="text-sm font-medium">{{ t("translations.title") }}</div>
-          <div class="text-muted-foreground text-xs">
+          <div class="text-muted-foreground text-sm">
             {{ t("translations.version", { version }) }}
           </div>
         </div>

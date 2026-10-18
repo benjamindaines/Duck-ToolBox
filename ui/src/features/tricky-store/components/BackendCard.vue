@@ -28,7 +28,7 @@ const others = computed(() =>
       </div>
       <div class="text-muted-foreground truncate text-sm">
         {{ status.active.version }} ·
-        <span class="font-mono text-xs">{{ status.active.module_id }}</span>
+        <span class="font-mono text-sm">{{ status.active.module_id }}</span>
       </div>
     </div>
 

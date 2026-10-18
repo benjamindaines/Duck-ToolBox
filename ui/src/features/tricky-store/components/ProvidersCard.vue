@@ -140,9 +140,11 @@ function confirmed() {
         >
           <ItemContent class="min-w-0">
             <ItemTitle>{{ provider.name }}</ItemTitle>
-            <ItemDescription dir="ltr" class="truncate font-mono text-xs rtl:text-right">{{
-              provider.url
-            }}</ItemDescription>
+            <ItemDescription
+              dir="ltr"
+              class="line-clamp-none font-mono text-sm leading-6 [overflow-wrap:anywhere] rtl:text-right"
+              >{{ provider.url }}</ItemDescription
+            >
           </ItemContent>
           <ItemActions class="gap-2">
             <Button

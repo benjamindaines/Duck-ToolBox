@@ -175,6 +175,9 @@ importers:
       '@tanstack/vue-query':
         specifier: ^5.104.0
         version: 5.104.0(vue@3.5.43(typescript-native-bridge@6.0.3-bridge.18.tsgo.7.0.2))
+      '@tanstack/vue-virtual':
+        specifier: 3.13.39
+        version: 3.13.39(vue@3.5.43(typescript-native-bridge@6.0.3-bridge.18.tsgo.7.0.2))
       '@vueuse/core':
         specifier: ^15.0.0
         version: 15.0.0(vue@3.5.43(typescript-native-bridge@6.0.3-bridge.18.tsgo.7.0.2))

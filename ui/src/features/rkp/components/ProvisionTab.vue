@@ -44,7 +44,7 @@ const rows = computed(() => {
 <template>
   <div class="flex flex-col gap-6">
     <p v-if="!provision" class="text-muted-foreground px-4 text-sm">{{ t("provision.empty") }}</p>
-    <Button size="lg" :disabled="run.isPending.value" @click="run.mutate()">
+    <Button size="lg" :disabled="store.profileBusy || !store.draft" @click="run.mutate()">
       <Spinner v-if="run.isPending.value" class="size-6" />
       <CloudUpload v-else />
       {{ t("provision.run") }}
@@ -56,7 +56,7 @@ const rows = computed(() => {
         <AlertTitle>{{
           provision.local_test_mode ? t("provision.localTestMode") : t("provision.submitError")
         }}</AlertTitle>
-        <AlertDescription class="font-mono text-xs break-all">
+        <AlertDescription class="font-mono text-sm break-all">
           {{ provision.fetch_eek_error || provision.server_submission_error }}
         </AlertDescription>
       </Alert>
@@ -76,14 +76,12 @@ const rows = computed(() => {
             class="bg-muted rounded-md p-4"
           >
             <div class="flex items-center justify-between gap-2">
-              <span class="font-mono text-xs">cert_chain_{{ chain.index }}</span>
+              <span class="font-mono text-sm">cert_chain_{{ chain.index }}</span>
               <Badge variant="secondary">
                 {{ t("provision.certificates", { count: chain.summary.certificates }) }}
               </Badge>
             </div>
-            <ul
-              class="text-muted-foreground mt-2 flex flex-col gap-1 font-mono text-[11px] break-all"
-            >
+            <ul class="text-muted-foreground mt-2 flex flex-col gap-1 font-mono text-sm break-all">
               <li v-for="subject in chain.summary.subjects" :key="subject">{{ subject }}</li>
             </ul>
           </div>

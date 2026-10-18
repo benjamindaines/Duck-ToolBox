@@ -24,9 +24,20 @@ const label = "overflow-hidden transition-[max-width,margin,opacity] duration-42
 </script>
 
 <template>
-  <div class="bottom-safe pointer-events-none fixed inset-x-0 z-30 mb-4 flex justify-end px-4">
-    <div class="pointer-events-auto mx-auto flex w-full max-w-3xl items-center justify-end gap-3">
-      <Button v-if="dirty" variant="secondary" size="lg" :class="fab" @click="emit('discard')">
+  <div
+    class="bottom-safe pointer-events-none fixed inset-x-0 z-30 mb-4 flex justify-end pl-[calc(1rem+var(--inset-left))] pr-[calc(1rem+var(--inset-right))]"
+  >
+    <div
+      class="pointer-events-auto mx-auto flex w-full max-w-3xl flex-wrap items-center justify-end gap-3"
+    >
+      <Button
+        v-if="dirty"
+        variant="secondary"
+        size="lg"
+        :class="fab"
+        :disabled="saving"
+        @click="emit('discard')"
+      >
         <Undo2 />
         <span :class="[label, collapsed ? 'ms-0 max-w-0 opacity-0' : 'ms-3 max-w-48']">
           {{ t("list.discard") }}

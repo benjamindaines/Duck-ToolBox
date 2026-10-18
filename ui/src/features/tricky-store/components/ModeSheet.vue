@@ -62,11 +62,11 @@ function save() {
 
 <template>
   <Drawer v-model:open="open">
-    <DrawerContent class="max-h-[90vh]">
+    <DrawerContent>
       <div class="mx-auto flex min-h-0 w-full max-w-lg flex-col">
         <DrawerHeader>
           <DrawerTitle>{{ t("ta.mode_dialog_title") }}</DrawerTitle>
-          <DrawerDescription class="truncate">
+          <DrawerDescription class="[overflow-wrap:anywhere]">
             {{ props.labels.get(packageName) ?? packageName }} ·
             <span class="font-mono">{{ packageName }}</span>
           </DrawerDescription>

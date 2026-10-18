@@ -25,15 +25,17 @@ const manager = computed(() => {
   <Card v-if="info.isEnabled.value" class="gap-4 rounded-2xl py-5">
     <CardContent class="flex flex-col gap-4 px-5">
       <template v-if="device">
-        <div class="flex items-center gap-4">
+        <div class="flex flex-wrap items-center gap-4">
           <div
             class="bg-secondary text-secondary-foreground grid size-12 shrink-0 place-items-center rounded-full"
           >
             <Smartphone class="size-6" />
           </div>
-          <div class="min-w-0 flex-1">
-            <p class="truncate text-[1.375rem] leading-7">{{ device.brand }} {{ device.model }}</p>
-            <p class="text-muted-foreground truncate text-sm">
+          <div class="min-w-[min(100%,10rem)] flex-1">
+            <p class="text-[1.375rem] [overflow-wrap:anywhere] leading-7">
+              {{ device.brand }} {{ device.model }}
+            </p>
+            <p class="text-muted-foreground text-sm leading-6">
               {{ t("device.android", { release: device.android_release, sdk: device.sdk }) }}
             </p>
           </div>
@@ -47,7 +49,7 @@ const manager = computed(() => {
             {{ t("device.patch") }} <bdi>{{ device.security_patch }}</bdi>
           </Badge>
           <Badge v-if="device.kernel_release" variant="outline" class="max-w-full">
-            <Cpu /> <bdi class="truncate">{{ device.kernel_release }}</bdi>
+            <Cpu /> <bdi class="[overflow-wrap:anywhere]">{{ device.kernel_release }}</bdi>
           </Badge>
           <Badge v-if="device.selinux" variant="outline">
             SELinux · {{ dynamic(`selinux.${device.selinux}`, device.selinux) }}

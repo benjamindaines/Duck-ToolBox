@@ -73,7 +73,7 @@ const rows = computed(() => {
         </InputGroupAddon>
       </InputGroup>
     </Field>
-    <Button size="lg" :disabled="!verifyPath.trim() || run.isPending.value" @click="run.mutate()">
+    <Button size="lg" :disabled="!verifyPath.trim() || store.profileBusy" @click="run.mutate()">
       <Spinner v-if="run.isPending.value" class="size-6" />
       <ShieldCheck v-else />
       {{ t("verify.run") }}
@@ -88,6 +88,7 @@ const rows = computed(() => {
       extension="cbor"
       root="/data/adb/duck-toolbox/var"
       start="/data/adb/duck-toolbox/var/outputs"
+      :allow-system="false"
       @pick="pick"
     />
   </div>

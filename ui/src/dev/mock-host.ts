@@ -114,6 +114,25 @@ export function installMockHost(): void {
       const stdout = respond(command)
       setTimeout(() => (scope[callback] as (...args: unknown[]) => void)?.(0, stdout, ""), latency)
     },
+    spawn(command: string, _args: string, options: string, callback: string) {
+      const name = `mock_${callback}`
+      scope[name] = (errno: number, stdout: string, stderr: string) => {
+        const process = scope[callback] as {
+          stdout: { emit: (event: string, line: string) => void }
+          stderr: { emit: (event: string, line: string) => void }
+          emit: (event: string, code: number) => void
+        }
+        for (const line of stdout.split("\n")) process.stdout.emit("data", line)
+        for (const line of stderr.split("\n")) process.stderr.emit("data", line)
+        process.emit("exit", errno)
+        delete scope[name]
+      }
+      // Keep exec as the shared test interception point for backend responses.
+      const host = scope.ksu as {
+        exec: (command: string, options: string, callback: string) => void
+      }
+      host.exec(command.trimEnd(), options, name)
+    },
     toast: (message: string) => console.info("[toast]", message),
     moduleInfo: () => JSON.stringify({ id: host, moduleDir: `/data/adb/modules/${host}` }),
     listPackages: (kind: string) =>

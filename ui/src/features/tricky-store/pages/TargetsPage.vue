@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useMutation } from "@tanstack/vue-query"
+import { useMutation, useQueryClient } from "@tanstack/vue-query"
 import { PackageSearch, Search } from "@lucide/vue"
 import { onKeyStroke } from "@vueuse/core"
 import { computed, ref, useTemplateRef, watch } from "vue"
@@ -8,6 +8,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import AppBarActions from "@/core/components/AppBarActions.vue"
 import QueryState from "@/core/components/QueryState.vue"
+import VirtualList from "@/core/components/VirtualList.vue"
 import { useRouteModal } from "@/core/modal"
 import { notifySuccess } from "@/core/notify"
 
@@ -19,30 +20,43 @@ import SaveFab from "../components/SaveFab.vue"
 import SystemAppsDialog from "../components/SystemAppsDialog.vue"
 import TargetsMenu from "../components/TargetsMenu.vue"
 import { useTrickyI18n } from "../i18n"
-import { useLabels, useStatusQuery } from "../queries"
-import { listedApps, matches } from "../selection"
+import { STATUS_KEY, useLabels, useStatusQuery } from "../queries"
+import { matches, sortedApps } from "../selection"
 import { useTrickyStore } from "../store"
 
 const { t } = useTrickyI18n()
 const store = useTrickyStore()
 const status = useStatusQuery()
+const client = useQueryClient()
 const modeSheet = useRouteModal("mode")
 const systemApps = useRouteModal("system-apps")
 
 watch(status.data, (next) => next && store.load(next), { immediate: true })
 
-const allPackages = computed(() => {
+const allPackages = computed<readonly string[]>((previous) => {
   const names = new Set(store.status?.packages.map((entry) => entry.package_name))
   for (const name of store.draft?.targets.keys() ?? []) names.add(name)
-  return [...names].sort()
+  const next = [...names].sort()
+  return previous?.length === next.length && next.every((name, index) => name === previous[index])
+    ? previous
+    : next
 })
 const labels = useLabels(allPackages)
 
 const query = ref("")
 const search = useTemplateRef<{ $el: HTMLElement }>("search")
-const listed = computed(() =>
-  store.status && store.draft ? listedApps(store.status, store.draft, labels.value) : [],
+const catalog = computed(() =>
+  store.status ? sortedApps(store.status, allPackages.value, labels.value) : [],
 )
+const listed = computed<typeof catalog.value>((previous) => {
+  const next = catalog.value.filter(
+    ({ packageName, system }) =>
+      !system || store.draft?.systemApps.has(packageName) || store.draft?.targets.has(packageName),
+  )
+  return previous?.length === next.length && next.every((item, index) => item === previous[index])
+    ? previous
+    : next
+})
 const visible = computed(() => listed.value.filter((item) => matches(item, query.value)))
 const tunable = computed(
   () => !!store.schema && (store.schema.supports_app_mode || store.schema.supports_per_app_policy),
@@ -61,9 +75,9 @@ function deselectAll() {
 
 const save = useMutation({
   mutationFn: async () => {
+    await client.cancelQueries({ queryKey: STATUS_KEY })
     const saved = await store.save()
-    const next = await status.refetch()
-    if (next.data) store.load(next.data, true)
+    client.setQueryData(STATUS_KEY, store.status)
     return saved
   },
   meta: { errorTitle: () => t("ta.prompt_save_error") },
@@ -75,8 +89,11 @@ const save = useMutation({
 })
 
 async function refresh() {
+  if (store.saving) return
   const next = await status.refetch()
-  if (next.data) store.load(next.data, true)
+  if (!next.isSuccess || !next.data) return
+  store.load(next.data, true)
+  void client.invalidateQueries({ queryKey: ["tricky-store", "labels"] })
   window.scrollTo({ top: 0 })
 }
 
@@ -95,7 +112,12 @@ const unnecessary = useMutation({
   onSuccess: (packages) => counted(store.deselectMany(packages), "list.deselectedCount"),
 })
 const autoAdd = useMutation({
-  mutationFn: (enabled: boolean) => store.saveOnly({ autoAdd: enabled }),
+  mutationFn: async (enabled: boolean) => {
+    await client.cancelQueries({ queryKey: STATUS_KEY })
+    const result = await store.saveOnly({ autoAdd: enabled })
+    client.setQueryData(STATUS_KEY, store.status)
+    return result
+  },
   meta: { errorTitle: () => t("ta.prompt_save_error") },
 })
 
@@ -118,7 +140,9 @@ function shortcut(key: string, action: () => void) {
 shortcut("a", selectAll)
 shortcut("d", deselectAll)
 shortcut("f", () => search.value?.$el.querySelector("input")?.focus())
-shortcut("s", () => save.mutate())
+shortcut("s", () => {
+  if (!save.isPending.value && !store.saving) save.mutate()
+})
 onKeyStroke("Escape", (event) => {
   if (typing(event) && query.value) query.value = ""
 })
@@ -132,6 +156,7 @@ onKeyStroke("Escape", (event) => {
         :denylist="store.status.root_manager?.kind === 'magisk'"
         :auto-add="store.draft?.autoAdd ?? false"
         :has-policy="!!store.schema?.default_policy.length"
+        :saving="store.saving || save.isPending.value"
         @select-all="selectAll"
         @deselect-all="deselectAll"
         @refresh="refresh"
@@ -178,20 +203,30 @@ onKeyStroke("Escape", (event) => {
             </InputGroup>
           </div>
 
-          <div class="flex flex-col gap-0.5">
-            <AppRow
-              v-for="item in visible"
-              :key="item.packageName"
-              :package-name="item.packageName"
-              :label="item.label"
-              :system="item.system"
-              :mode="store.draft.targets.get(item.packageName) ?? null"
-              :custom-policy="store.draft.perApp.has(item.packageName)"
-              :tunable="tunable"
-              @toggle="store.toggle(item.packageName)"
-              @tune="modeSheet.show({ pkg: item.packageName })"
-            />
-          </div>
+          <VirtualList
+            :items="visible"
+            :item-key="(item) => item.packageName"
+            :estimate-size="96"
+            window-scroll
+          >
+            <template #default="{ item, index }">
+              <AppRow
+                :class="{
+                  'rounded-t-lg': !store.draft.targets.has(item.packageName) && index === 0,
+                  'rounded-b-lg':
+                    !store.draft.targets.has(item.packageName) && index === visible.length - 1,
+                }"
+                :package-name="item.packageName"
+                :label="item.label"
+                :system="item.system"
+                :mode="store.draft.targets.get(item.packageName) ?? null"
+                :custom-policy="store.draft.perApp.has(item.packageName)"
+                :tunable="tunable"
+                @toggle="store.toggle(item.packageName)"
+                @tune="modeSheet.show({ pkg: item.packageName })"
+              />
+            </template>
+          </VirtualList>
           <p v-if="!visible.length" class="text-muted-foreground py-8 text-center text-sm">
             {{ t("list.empty") }}
           </p>
@@ -202,7 +237,7 @@ onKeyStroke("Escape", (event) => {
     <template v-if="store.status?.active">
       <SaveFab
         :dirty="store.dirty"
-        :saving="save.isPending.value"
+        :saving="save.isPending.value || store.saving"
         @save="save.mutate()"
         @discard="discard"
       />
