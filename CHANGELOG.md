@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.7-stable - 2026-10-19
+
+### Tricky Store manager
+
+- Accept EC-only keyboxes for OhMyKeymint while retaining certificate-chain and
+  certificate-count validation for every supplied key.
+- Preserve legacy and modern Xposed module detection with zip 9 through exact
+  central-directory path lookups, including APKs with non-UTF-8 filenames.
+
+### Dependencies
+
+- Upgrade zip to 9.0.4 and refresh Rust and WebUI dependencies and lockfiles.
+
 ## 0.1.6-stable - 2026-10-18
 
 ### WebUI
