@@ -16,6 +16,7 @@ import {
 import { Spinner } from "@/components/ui/spinner"
 import FilePickerDialog from "@/core/components/FilePickerDialog.vue"
 import type { PickedFile } from "@/core/components/FilePickerDialog.vue"
+import KeyboxCompatibilityDialog from "@/core/components/KeyboxCompatibilityDialog.vue"
 import SectionCard from "@/core/components/SectionCard.vue"
 
 import { trickyStoreApi } from "../api"
@@ -26,9 +27,13 @@ const { t } = useTrickyI18n()
 const router = useRouter()
 const picking = ref(false)
 
-const aosp = useKeyboxInstall(trickyStoreApi.keyboxAosp, { success: "ta.prompt_aosp_key_set" })
+const aosp = useKeyboxInstall(trickyStoreApi.keyboxAosp, {
+  success: "ta.prompt_aosp_key_set",
+  bundled: true,
+})
 const unknown = useKeyboxInstall(trickyStoreApi.keyboxGenerate, {
   success: "ta.prompt_unknown_key_set",
+  bundled: true,
 })
 const local = useKeyboxInstall(
   (file: PickedFile) =>
@@ -105,5 +110,6 @@ const sources = computed<Source[]>(() => [
       </Item>
     </ItemGroup>
     <FilePickerDialog v-model:open="picking" extension="xml" @pick="local.mutate($event)" />
+    <KeyboxCompatibilityDialog :confirmation="local.compatibility" />
   </SectionCard>
 </template>

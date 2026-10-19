@@ -62,7 +62,10 @@
     "backup": "Previous keybox saved to {path}",
     "systemPicker": "Pick with the system file manager",
     "repoLoading": "Connecting to the keybox repository…",
-    "repoTitle": "Keybox repository"
+    "repoTitle": "Keybox repository",
+    "omkCompatibilityTitle": "OMK keybox compatibility",
+    "omkCompatibilityDescription": "Older OMK builds require both EC and RSA in the keybox. EC-only files, including RKP exports, need the support added in commit b12557c; missing RSA then uses the bundled AOSP RSA chain. Support cannot be verified automatically for the installed build. Continue installing?",
+    "continueInstall": "Continue installation"
   },
   "policy": {
     "none": "The active module has no default policy.",

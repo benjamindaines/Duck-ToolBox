@@ -62,7 +62,10 @@
     "backup": "Keybox sebelumnya dicadangkan ke {path}",
     "systemPicker": "Pilih dengan pengelola file sistem",
     "repoLoading": "Menghubungkan ke repositori keybox…",
-    "repoTitle": "Repositori keybox"
+    "repoTitle": "Repositori keybox",
+    "omkCompatibilityTitle": "Kompatibilitas keybox OMK",
+    "omkCompatibilityDescription": "Build OMK lama memerlukan EC dan RSA dalam keybox. Berkas khusus EC, termasuk ekspor RKP, memerlukan dukungan dari commit b12557c; jika RSA tidak ada, rantai RSA AOSP bawaan digunakan. Dukungan build yang terpasang tidak dapat diverifikasi otomatis. Lanjutkan pemasangan?",
+    "continueInstall": "Lanjutkan pemasangan"
   },
   "policy": {
     "none": "Modul yang aktif tidak memiliki kebijakan default.",

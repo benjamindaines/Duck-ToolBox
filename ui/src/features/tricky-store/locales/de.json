@@ -62,7 +62,10 @@
     "backup": "Vorherige Keybox unter {path} gesichert",
     "systemPicker": "Mit dem Dateimanager des Systems auswählen",
     "repoLoading": "Verbindung zum Keybox-Repository wird hergestellt…",
-    "repoTitle": "Keybox-Repository"
+    "repoTitle": "Keybox-Repository",
+    "omkCompatibilityTitle": "OMK-Keybox-Kompatibilität",
+    "omkCompatibilityDescription": "Ältere OMK-Versionen benötigen EC und RSA in der Keybox. Dateien nur mit EC, etwa RKP-Exporte, benötigen die Unterstützung aus Commit b12557c; fehlt RSA, wird die mitgelieferte AOSP-RSA-Kette verwendet. Die Unterstützung der installierten Version lässt sich nicht automatisch prüfen. Installation fortsetzen?",
+    "continueInstall": "Installation fortsetzen"
   },
   "policy": {
     "none": "Das aktive Modul hat keine Standardrichtlinie.",

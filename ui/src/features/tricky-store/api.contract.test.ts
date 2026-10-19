@@ -121,6 +121,36 @@ describe.skipIf(!hasDuckd)("Tricky Store API against the real duckd", CONTRACT, 
     expect(injector).not.toContain("version")
   })
 
+  it("installs EC-only keyboxes for OMK from files, browser imports and downloads", async () => {
+    const ecOnly = AOSP_KEYBOX.replace(/\s*<Key algorithm="rsa">[\s\S]*?<\/Key>/, "")
+    host = installHost({
+      ...backends["oh-my-keymint"],
+      files: {
+        ...backends["oh-my-keymint"]!.files,
+        "/storage/emulated/0/ec-only.xml": ecOnly,
+      },
+    })
+    server = await serve({ "/ec-only.xml": ecOnly })
+
+    for (const install of [
+      () => trickyStoreApi.keyboxInstall("/storage/emulated/0/ec-only.xml"),
+      () => trickyStoreApi.keyboxImport(ecOnly),
+      () => trickyStoreApi.keyboxFetch(server!.url("/ec-only.xml")),
+    ]) {
+      const result = await install()
+      expect(result.summary).toMatchObject({ has_ecdsa: true, has_rsa: false })
+      expect(readFileSync(host.path(result.target_path), "utf8")).not.toContain('algorithm="rsa"')
+    }
+
+    const rsaOnly = AOSP_KEYBOX.replace(/\s*<Key algorithm="ecdsa">[\s\S]*?<\/Key>/, "")
+    await expect(trickyStoreApi.keyboxImport(rsaOnly)).rejects.toMatchObject({
+      code: "backend_rule",
+    })
+    const path = "/data/misc/keystore/omk/keybox.xml"
+    expect(readFileSync(host.path(path), "utf8")).toContain('algorithm="ecdsa"')
+    expect(readFileSync(host.path(path), "utf8")).not.toContain('algorithm="rsa"')
+  })
+
   it("downloads keyboxes the way providers and the repository hand them over", async () => {
     server = await serve({
       "/plain.xml": AOSP_KEYBOX,

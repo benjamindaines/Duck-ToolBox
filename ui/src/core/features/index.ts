@@ -6,6 +6,7 @@ export type {
   ContributionKey,
   Contributions,
   FeatureDefinition,
+  KeyboxCompatibilityWarning,
   KeyboxInstallResult,
   KeyboxTarget,
   LocaleLoaders,

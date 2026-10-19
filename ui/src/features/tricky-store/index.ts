@@ -6,6 +6,7 @@ import { localeFiles } from "@/core/i18n"
 import { trickyStoreApi } from "./api"
 import TrickyStoreSettings from "./components/TrickyStoreSettings.vue"
 import { NAMESPACE } from "./i18n"
+import { keyboxCompatibilityWarning } from "./keybox-compatibility"
 import { withDownloadedTranslations } from "./translation-update"
 
 const title = (key: string) => ({ titleKey: `${NAMESPACE}.${key}` })
@@ -51,6 +52,10 @@ export default defineFeature({
       {
         id: "tricky-store",
         labelKey: `${NAMESPACE}.meta.title`,
+        async compatibilityWarning() {
+          const status = await trickyStoreApi.status()
+          return keyboxCompatibilityWarning(status.active?.backend)
+        },
         async install(sourcePath) {
           const result = await trickyStoreApi.keyboxInstall(sourcePath)
           return { targetPath: result.target_path, backupPath: result.backup_path }

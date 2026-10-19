@@ -6,10 +6,12 @@ import { useI18n } from "vue-i18n"
 
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
+import KeyboxCompatibilityDialog from "@/core/components/KeyboxCompatibilityDialog.vue"
 import KeyValueList from "@/core/components/KeyValueList.vue"
 import SectionCard from "@/core/components/SectionCard.vue"
 import { contributions } from "@/core/features"
 import type { KeyboxTarget } from "@/core/features"
+import { useKeyboxInstallConfirmation } from "@/core/keybox"
 import { notifySuccess } from "@/core/notify"
 
 import { attestationApi } from "../api"
@@ -22,6 +24,7 @@ const global = useI18n()
 const source = ref<InputFile | null>(null)
 const result = ref<KeyboxResult | null>(null)
 const targets = contributions("keyboxTargets")
+const compatibility = useKeyboxInstallConfirmation()
 const run = useMutation({
   mutationFn: (save: boolean) =>
     attestationApi.keybox({ source: source.value!, format: "auto", export: save }),
@@ -34,8 +37,11 @@ const run = useMutation({
   },
 })
 const install = useMutation({
-  mutationFn: (target: KeyboxTarget) => target.install(result.value!.artifacts!.material_path),
-  onSuccess: () => notifySuccess(t("keybox.installed")),
+  mutationFn: (target: KeyboxTarget) =>
+    compatibility.install(target, result.value!.artifacts!.material_path),
+  onSuccess: (installed) => {
+    if (installed) notifySuccess(t("keybox.installed"))
+  },
 })
 watch(source, () => {
   result.value = null
@@ -126,5 +132,6 @@ watch(source, () => {
         >
       </template>
     </fieldset>
+    <KeyboxCompatibilityDialog :confirmation="compatibility" />
   </div>
 </template>

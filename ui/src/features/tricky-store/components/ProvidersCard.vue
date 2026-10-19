@@ -16,6 +16,7 @@ import { Spinner } from "@/components/ui/spinner"
 import ConfirmDialog from "@/core/components/ConfirmDialog.vue"
 import FilePickerDialog from "@/core/components/FilePickerDialog.vue"
 import type { PickedFile } from "@/core/components/FilePickerDialog.vue"
+import KeyboxCompatibilityDialog from "@/core/components/KeyboxCompatibilityDialog.vue"
 import QueryState from "@/core/components/QueryState.vue"
 import SectionCard from "@/core/components/SectionCard.vue"
 import { notifySuccess } from "@/core/notify"
@@ -207,5 +208,6 @@ function confirmed() {
       @confirm="confirmed"
     />
     <FilePickerDialog v-model:open="importing" extension="json" @pick="importFile.mutate($event)" />
+    <KeyboxCompatibilityDialog :confirmation="fetchKeybox.compatibility" />
   </SectionCard>
 </template>

@@ -62,7 +62,10 @@
     "backup": "Keybox precedente salvata in {path}",
     "systemPicker": "Scegli con il file manager di sistema",
     "repoLoading": "Connessione al repository delle keybox…",
-    "repoTitle": "Repository delle keybox"
+    "repoTitle": "Repository delle keybox",
+    "omkCompatibilityTitle": "Compatibilità keybox con OMK",
+    "omkCompatibilityDescription": "Le vecchie versioni di OMK richiedono EC e RSA nel keybox. I file solo EC, come le esportazioni RKP, richiedono il supporto del commit b12557c; in assenza di RSA viene usata la catena RSA AOSP inclusa. Non è possibile verificare automaticamente il supporto della versione installata. Continuare con l’installazione?",
+    "continueInstall": "Continua installazione"
   },
   "policy": {
     "none": "Il modulo attivo non ha una politica predefinita.",

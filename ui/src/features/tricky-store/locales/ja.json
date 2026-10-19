@@ -62,7 +62,10 @@
     "backup": "以前の Keybox を {path} に保存しました",
     "systemPicker": "システムのファイル マネージャーで選択",
     "repoLoading": "Keybox リポジトリに接続しています…",
-    "repoTitle": "Keybox リポジトリ"
+    "repoTitle": "Keybox リポジトリ",
+    "omkCompatibilityTitle": "OMK keybox の互換性",
+    "omkCompatibilityDescription": "旧版 OMK では keybox に EC と RSA の両方が必要です。RKP のエクスポートなど EC のみのファイルには、コミット b12557c の対応を含むビルドが必要です。RSA がない場合は内蔵の AOSP RSA 証明書チェーンが使われます。現在のビルドの対応状況は自動確認できません。インストールを続けますか？",
+    "continueInstall": "インストールを続行"
   },
   "policy": {
     "none": "使用中のモジュールにはデフォルトのポリシーがありません。",

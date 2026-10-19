@@ -5,6 +5,7 @@ import { useRouter } from "vue-router"
 import { toast } from "vue-sonner"
 
 import { Spinner } from "@/components/ui/spinner"
+import KeyboxCompatibilityDialog from "@/core/components/KeyboxCompatibilityDialog.vue"
 
 import { trickyStoreApi } from "../api"
 import { useTrickyI18n } from "../i18n"
@@ -51,9 +52,11 @@ useEventListener(window, "message", (event: MessageEvent) => {
       handshake.pause()
       break
     case "download":
-      if (typeof message.url !== "string") return
-      install.mutate(message.url)
-      leave()
+      if (typeof message.url !== "string" || install.isPending.value) return
+      install.mutate(message.url, {
+        onSuccess: (result) => result && leave(),
+        onError: leave,
+      })
       break
     case "error":
       toast.error(t("ta.prompt_keybox_repo_download_error", [String(message.identity ?? "")]))
@@ -81,5 +84,6 @@ useEventListener(window, "message", (event: MessageEvent) => {
       referrerpolicy="no-referrer"
       @load="loaded"
     />
+    <KeyboxCompatibilityDialog :confirmation="install.compatibility" />
   </div>
 </template>

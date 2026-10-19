@@ -62,7 +62,10 @@
     "backup": "이전 키박스 백업 위치: {path}",
     "systemPicker": "시스템 파일 관리자로 선택",
     "repoLoading": "키박스 저장소에 연결하는 중…",
-    "repoTitle": "키박스 저장소"
+    "repoTitle": "키박스 저장소",
+    "omkCompatibilityTitle": "OMK keybox 호환성",
+    "omkCompatibilityDescription": "이전 OMK 빌드는 keybox에 EC와 RSA가 모두 있어야 합니다. RKP 내보내기와 같은 EC 전용 파일은 b12557c 커밋의 지원이 포함된 빌드가 필요하며, RSA가 없으면 내장 AOSP RSA 인증서 체인을 사용합니다. 설치된 빌드의 지원 여부를 자동으로 확인할 수 없습니다. 설치를 계속할까요?",
+    "continueInstall": "설치 계속"
   },
   "policy": {
     "none": "활성화된 모듈에는 기본 정책이 없습니다.",
