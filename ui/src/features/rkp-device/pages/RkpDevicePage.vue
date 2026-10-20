@@ -17,11 +17,13 @@ import {
 } from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
 import ConfirmDialog from "@/core/components/ConfirmDialog.vue"
+import KeyboxCompatibilityDialog from "@/core/components/KeyboxCompatibilityDialog.vue"
 import KeyValueList from "@/core/components/KeyValueList.vue"
 import QueryState from "@/core/components/QueryState.vue"
 import SectionCard from "@/core/components/SectionCard.vue"
 import type { KeyboxTarget } from "@/core/features"
 import { contributions } from "@/core/features"
+import { useKeyboxInstallConfirmation } from "@/core/keybox"
 import { notifySuccess } from "@/core/notify"
 
 import type { Protocol, Provision } from "../api"
@@ -59,6 +61,7 @@ const canRun = computed(() => {
 // Other tools register where a generated keybox can be installed, like the Tricky Store
 // manager does for the offline workbench.
 const keyboxTargets = contributions("keyboxTargets")
+const compatibility = useKeyboxInstallConfirmation()
 
 const run = useMutation({
   mutationFn: () => rkpDeviceApi.provision(protocol.value),
@@ -75,18 +78,21 @@ const run = useMutation({
 const installingTarget = ref<string | null>(null)
 
 const install = useMutation({
-  mutationFn: (target: KeyboxTarget) => target.install(result.value!.artifacts.keybox_path),
+  mutationFn: (target: KeyboxTarget) =>
+    compatibility.install(target, result.value!.artifacts.keybox_path),
   onMutate: (target) => {
     installingTarget.value = target.id
   },
   onSettled: () => {
     installingTarget.value = null
   },
-  onSuccess: (installed) =>
+  onSuccess: (installed) => {
+    if (!installed) return
     notifySuccess(
       t("run.installed", { target: installed.targetPath }),
       installed.backupPath ? t("run.backup", { path: installed.backupPath }) : undefined,
-    ),
+    )
+  },
 })
 
 // Every limitation is a translatable sentence; the identifiers come from the backend,
@@ -314,5 +320,6 @@ const resultRows = computed<Row[]>(() => {
       :confirm-label="t('run.provision')"
       @confirm="run.mutate()"
     />
+    <KeyboxCompatibilityDialog :confirmation="compatibility" />
   </div>
 </template>

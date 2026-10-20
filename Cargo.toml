@@ -4,7 +4,7 @@ members = ["crates/*", "xtask"]
 default-members = ["crates/*"]
 
 [workspace.package]
-version = "0.1.6-stable"
+version = "0.1.7-stable"
 edition = "2024"
 rust-version = "1.89"
 license = "MIT"
@@ -54,7 +54,7 @@ webpki-roots = "1.0.9"
 x25519-dalek = { version = "3.0.0", features = ["static_secrets"] }
 x509-cert = "0.3.0"
 zeroize = { version = "1.9.0", features = ["derive"] }
-zip = { version = "8.6.0", default-features = false, features = ["deflate"] }
+zip = { version = "9.0.3", default-features = false, features = ["deflate"] }
 
 [workspace.lints.rust]
 unsafe_code = "deny"

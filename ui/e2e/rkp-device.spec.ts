@@ -40,6 +40,23 @@ test("automatic mode can issue on a V1-only device without V2 resources", async 
   ).toBeVisible()
 })
 
+test("warns before installing an issued RKP keybox into OMK", async ({ page, open }) => {
+  await open("/rkp-device", { query: { backend: "oh-my-keymint" } })
+  await page.getByRole("button", { name: "Issue RKP keybox", exact: true }).click()
+  await page
+    .getByRole("alertdialog")
+    .getByRole("button", { name: "Issue RKP keybox", exact: true })
+    .click()
+  await page.getByRole("button", { name: "Install to Tricky Store", exact: true }).click()
+  const dialog = page.getByRole("alertdialog")
+  await expect(dialog.getByText("OMK keybox compatibility", { exact: true })).toBeVisible()
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click()
+  await expect(page.getByText(/Keybox installed to/)).toBeHidden()
+  await page.getByRole("button", { name: "Install to Tricky Store", exact: true }).click()
+  await dialog.getByRole("button", { name: "Continue installation", exact: true }).click()
+  await expect(page.getByText(/Keybox installed to/)).toBeVisible()
+})
+
 test("native V1 backup can be selected without an AIDL APK", async ({ page, open }) => {
   await open("/rkp-device", { query: { rkp: "v2-only" } })
   await page.getByRole("combobox", { name: "Protocol" }).click()

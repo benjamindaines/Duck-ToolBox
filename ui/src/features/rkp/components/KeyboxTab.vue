@@ -7,10 +7,12 @@ import { useI18n } from "vue-i18n"
 
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
+import KeyboxCompatibilityDialog from "@/core/components/KeyboxCompatibilityDialog.vue"
 import KeyValueList from "@/core/components/KeyValueList.vue"
 import SectionCard from "@/core/components/SectionCard.vue"
 import type { KeyboxTarget } from "@/core/features"
 import { contributions } from "@/core/features"
+import { useKeyboxInstallConfirmation } from "@/core/keybox"
 import { notifySuccess } from "@/core/notify"
 
 import { useRkpI18n } from "../i18n"
@@ -22,18 +24,21 @@ const store = useRkpStore()
 const { keybox } = storeToRefs(store)
 // Other tools (the Tricky Store manager) register where a keybox can be installed.
 const targets = contributions("keyboxTargets")
+const compatibility = useKeyboxInstallConfirmation()
 
 const generate = useMutation({
   mutationFn: store.runKeybox,
   onSuccess: () => notifySuccess(t("keybox.done")),
 })
 const install = useMutation({
-  mutationFn: (target: KeyboxTarget) => target.install(keybox.value!.keybox_path),
-  onSuccess: (result) =>
+  mutationFn: (target: KeyboxTarget) => compatibility.install(target, keybox.value!.keybox_path),
+  onSuccess: (result) => {
+    if (!result) return
     notifySuccess(
       t("keybox.installed", { target: result.targetPath }),
       result.backupPath ? t("keybox.backup", { path: result.backupPath }) : undefined,
-    ),
+    )
+  },
 })
 
 const rows = computed(() =>
@@ -78,5 +83,6 @@ const rows = computed(() =>
         </div>
       </div>
     </SectionCard>
+    <KeyboxCompatibilityDialog :confirmation="compatibility" />
   </div>
 </template>

@@ -62,7 +62,10 @@
     "backup": "原 Keybox 已备份到 {path}",
     "systemPicker": "使用系统文件管理器选择",
     "repoLoading": "正在连接 Keybox 仓库…",
-    "repoTitle": "Keybox 仓库"
+    "repoTitle": "Keybox 仓库",
+    "omkCompatibilityTitle": "OMK Keybox 兼容性",
+    "omkCompatibilityDescription": "旧版 OMK 要求 keybox 同时包含 EC 和 RSA。仅含 EC 的文件（如 RKP 导出）需要包含 b12557c 提交的新版本；缺少 RSA 时会使用内置 AOSP RSA 证书链。无法自动确认当前版本是否支持，是否继续安装？",
+    "continueInstall": "继续安装"
   },
   "policy": {
     "none": "当前模块没有默认策略。",

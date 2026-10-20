@@ -12,10 +12,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Spinner } from "@/components/ui/spinner"
+import KeyboxCompatibilityDialog from "@/core/components/KeyboxCompatibilityDialog.vue"
 import KeyValueList from "@/core/components/KeyValueList.vue"
 import SectionCard from "@/core/components/SectionCard.vue"
 import type { KeyboxTarget } from "@/core/features"
 import { contributions } from "@/core/features"
+import { useKeyboxInstallConfirmation } from "@/core/keybox"
 import { notifySuccess } from "@/core/notify"
 
 import { useRkpI18n } from "../i18n"
@@ -32,9 +34,12 @@ const exported = computed(() =>
   importResult.value?.stage === "exported" ? importResult.value : null,
 )
 const targets = contributions("keyboxTargets")
+const compatibility = useKeyboxInstallConfirmation()
 const install = useMutation({
-  mutationFn: (target: KeyboxTarget) => target.install(exported.value!.keybox_path),
-  onSuccess: (result) => notifySuccess(t("keybox.installed", { target: result.targetPath })),
+  mutationFn: (target: KeyboxTarget) => compatibility.install(target, exported.value!.keybox_path),
+  onSuccess: (result) => {
+    if (result) notifySuccess(t("keybox.installed", { target: result.targetPath }))
+  },
 })
 const materialRows = computed(() => {
   const data = importResult.value?.material
@@ -191,5 +196,6 @@ const resultRows = computed(() => {
         </div>
       </SectionCard>
     </template>
+    <KeyboxCompatibilityDialog :confirmation="compatibility" />
   </div>
 </template>

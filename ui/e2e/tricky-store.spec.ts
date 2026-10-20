@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs"
+
 import { expect, test } from "./fixtures"
 
 const row = (name: string) => ({ role: "checkbox" as const, name: new RegExp(name) })
@@ -145,6 +147,49 @@ test.describe("keybox", () => {
     await expect(page.getByText("AOSP keybox set successfully")).toBeVisible()
   })
 
+  test("warns before OMK provider installs and lets the user cancel", async ({ page, open }) => {
+    await open("/tricky-store/keybox", { query: { backend: "oh-my-keymint" } })
+    await page.getByRole("button", { name: "Example provider", exact: true }).click()
+    const dialog = page.getByRole("alertdialog")
+    await expect(dialog.getByText("OMK keybox compatibility", { exact: true })).toBeVisible()
+    await expect(dialog.getByText(/b12557c/)).toBeVisible()
+    await expect(dialog).toHaveCSS("opacity", "1")
+    await page.screenshot({ path: "test-results/omk-keybox-warning.png", animations: "disabled" })
+    await dialog.getByRole("button", { name: "Cancel", exact: true }).click()
+    await expect(page.getByText("Custom keybox set successfully", { exact: true })).toBeHidden()
+    await page.getByRole("button", { name: "Example provider", exact: true }).click()
+    await dialog.getByRole("button", { name: "Continue installation", exact: true }).click()
+    await expect(page.getByText("Custom keybox set successfully", { exact: true })).toBeVisible()
+  })
+
+  test("warns before OMK browser imports but installs bundled keyboxes directly", async ({
+    page,
+    open,
+  }) => {
+    await open("/tricky-store/keybox", { query: { backend: "oh-my-keymint" } })
+    await page.getByRole("button", { name: /AOSP/ }).click()
+    await expect(page.getByText("AOSP keybox set successfully")).toBeVisible()
+    await expect(page.getByRole("alertdialog")).toBeHidden()
+    await page.getByRole("button", { name: /Local/ }).click()
+    await page
+      .getByRole("dialog")
+      .locator('input[type="file"]')
+      .setInputFiles({
+        name: "ec-only.xml",
+        mimeType: "application/xml",
+        buffer: Buffer.from(
+          readFileSync(
+            new URL("../../crates/duck-tricky-store/assets/aosp-keybox.xml", import.meta.url),
+            "utf8",
+          ).replace(/\s*<Key algorithm="rsa">[\s\S]*?<\/Key>/, ""),
+        ),
+      })
+    const dialog = page.getByRole("alertdialog")
+    await expect(dialog.getByText("OMK keybox compatibility", { exact: true })).toBeVisible()
+    await dialog.getByRole("button", { name: "Continue installation", exact: true }).click()
+    await expect(page.getByText("Custom keybox set successfully", { exact: true })).toBeVisible()
+  })
+
   test("rejects a provider with a disallowed decode step", async ({ page, open }) => {
     await open("/tricky-store/keybox")
     await page.getByRole("button", { name: "Add provider" }).click()
@@ -190,6 +235,25 @@ test.describe("keybox repository", () => {
     await expect(page).toHaveURL(/#\/tricky-store\/keybox$/)
   })
 
+  test("keeps the OMK compatibility dialog open until the repository install is confirmed", async ({
+    page,
+    open,
+  }) => {
+    await page.route("https://keybox.kowx712.cc/**", (route) =>
+      route.fulfill({
+        contentType: "text/html",
+        body: site(`{ type: "download", url: "https://keybox.kowx712.cc/api/kb/1" }`),
+      }),
+    )
+    await open("/tricky-store/keybox/repo", { query: { backend: "oh-my-keymint" } })
+    const dialog = page.getByRole("alertdialog")
+    await expect(dialog.getByText("OMK keybox compatibility", { exact: true })).toBeVisible()
+    await expect(page).toHaveURL(/#\/tricky-store\/keybox\/repo$/)
+    await dialog.getByRole("button", { name: "Continue installation", exact: true }).click()
+    await expect(page.getByText("Keybox set from repo successfully")).toBeVisible()
+    await expect(page).toHaveURL(/#\/tricky-store\/keybox$/)
+  })
+
   test("reports a download the site could not serve", async ({ page, open }) => {
     await page.route("https://keybox.kowx712.cc/**", (route) =>
       route.fulfill({
@@ -199,6 +263,25 @@ test.describe("keybox repository", () => {
     )
     await open("/tricky-store/keybox/repo")
     await expect(page.getByText("Download failed for Pixel-42")).toBeVisible()
+  })
+
+  test("returns to keybox management when a repository keybox fails to download", async ({
+    page,
+    open,
+  }) => {
+    await page.route("https://keybox.kowx712.cc/**", (route) =>
+      route.fulfill({
+        contentType: "text/html",
+        body: site(`{ type: "download", url: "https://keybox.kowx712.cc/api/fail" }`),
+      }),
+    )
+    await open("/tricky-store/keybox/repo", { query: { backend: "oh-my-keymint" } })
+    await page
+      .getByRole("alertdialog")
+      .getByRole("button", { name: "Continue installation", exact: true })
+      .click()
+    await expect(page.getByText("Failed to set keybox from repo", { exact: true })).toBeVisible()
+    await expect(page).toHaveURL(/#\/tricky-store\/keybox$/)
   })
 })
 

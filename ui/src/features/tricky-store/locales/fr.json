@@ -62,7 +62,10 @@
     "backup": "Keybox précédente sauvegardée dans {path}",
     "systemPicker": "Choisir avec le sélecteur du système",
     "repoLoading": "Connexion au dépôt de Keybox…",
-    "repoTitle": "Dépôt de Keybox"
+    "repoTitle": "Dépôt de Keybox",
+    "omkCompatibilityTitle": "Compatibilité du keybox avec OMK",
+    "omkCompatibilityDescription": "Les anciennes versions d’OMK exigent EC et RSA dans le keybox. Les fichiers EC seuls, notamment les exports RKP, nécessitent la prise en charge du commit b12557c ; en l’absence de RSA, la chaîne RSA AOSP intégrée est utilisée. La compatibilité de la version installée ne peut pas être vérifiée automatiquement. Continuer l’installation ?",
+    "continueInstall": "Continuer l’installation"
   },
   "policy": {
     "none": "Le module actif n’a pas de règles par défaut.",

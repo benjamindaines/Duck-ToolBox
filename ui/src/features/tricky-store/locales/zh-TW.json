@@ -62,7 +62,10 @@
     "backup": "原密鑰已備份至 {path}",
     "systemPicker": "使用系統檔案管理器選取",
     "repoLoading": "正在連線至密鑰倉庫…",
-    "repoTitle": "密鑰倉庫"
+    "repoTitle": "密鑰倉庫",
+    "omkCompatibilityTitle": "OMK Keybox 相容性",
+    "omkCompatibilityDescription": "舊版 OMK 要求 keybox 同時包含 EC 與 RSA。僅含 EC 的檔案（如 RKP 匯出）需要包含 b12557c 提交的新版本；缺少 RSA 時會使用內建 AOSP RSA 憑證鏈。無法自動確認目前版本是否支援，是否繼續安裝？",
+    "continueInstall": "繼續安裝"
   },
   "policy": {
     "none": "目前使用的模組沒有預設策略。",

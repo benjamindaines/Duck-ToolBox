@@ -9,11 +9,19 @@ export interface KeyboxInstallResult {
   backupPath: string | null
 }
 
+export interface KeyboxCompatibilityWarning {
+  titleKey: string
+  descriptionKey: string
+  confirmLabelKey: string
+}
+
 /** Somewhere a generated `keybox.xml` can be installed, e.g. the active keystore module. */
 export interface KeyboxTarget {
   id: string
   /** Full i18n key of the target's name. */
   labelKey: string
+  /** A warning to acknowledge before installing when support cannot be determined. */
+  compatibilityWarning?(): Promise<KeyboxCompatibilityWarning | null>
   install(sourcePath: string): Promise<KeyboxInstallResult>
 }
 
