@@ -17,6 +17,7 @@ mod error;
 mod qseecom;
 mod report;
 mod spec;
+mod trustkernel;
 
 pub use cli::{Command, FEATURE, run};
 pub use error::DeviceIdsError;
@@ -170,14 +171,23 @@ pub fn detect_defaults() -> DeviceIdsProfile {
 pub fn provision(paths: &AppPaths, profile: DeviceIdsProfile) -> Result<DeviceIdsProvisionResult> {
     let resolved = merge_missing_from_system(profile);
     let ids = spec::collect_ids(&resolved)?;
-    let command = command::build(&ids)?;
+
+    // The CBOR command is only used by the Qualcomm path; TrustKernel builds
+    // ASCII payloads internally. An empty vec is passed for the report when
+    // the MediaTek path is taken.
+    let mediatek = is_mediatek_device();
+    let command = if mediatek { Vec::new() } else { command::build(&ids)? };
 
     let mut session_info = qseecom::SessionInfo::default();
     if !resolved.dry_run {
         if !cfg!(target_os = "android") {
             bail!("device ID provisioning is only supported when Duck ToolBox runs on Android");
         }
-        session_info = qseecom::provision(&resolved.ta_path, &resolved.ta_name, &command)?;
+        session_info = if mediatek {
+            trustkernel::provision(&resolved)?
+        } else {
+            qseecom::provision(&resolved.ta_path, &resolved.ta_name, &command)?
+        };
     }
 
     let provisioned = ids
