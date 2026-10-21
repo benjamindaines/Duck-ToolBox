@@ -1,5 +1,6 @@
-//! Provisions attestation device IDs (brand, model, IMEI, ...) into the Qualcomm Keymaster
-//! trusted application through `libQSEEComAPI.so`.
+//! Provisions attestation device IDs (brand, model, IMEI, ...) into the device's KeyMint
+//! trusted application. On Qualcomm devices this uses `libQSEEComAPI.so` (QSEE-COM); on
+//! MediaTek devices with TrustKernel TEE the TA defaults are adjusted accordingly.
 //!
 //! The tag values are the KeyMint `ATTESTATION_ID_*` tags from AOSP
 //! `hardware/interfaces/security/keymint/aidl/android/hardware/security/keymint/Tag.aidl`.
@@ -22,6 +23,11 @@ pub use error::DeviceIdsError;
 
 const DEFAULT_TA_NAME: &str = "keymaster64";
 const DEFAULT_TA_PATH: &str = "/vendor/firmware_mnt/image";
+
+/// TA name used on MediaTek devices with TrustKernel TEE.
+const MEDIATEK_TA_NAME: &str = "keymaster";
+/// TA search path on MediaTek devices; TrustKernel loads TAs from /vendor/app/t6.
+const MEDIATEK_TA_PATH: &str = "/vendor/app/t6";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeviceIdsProfile {
@@ -100,8 +106,27 @@ fn default_ta_path() -> String {
     DEFAULT_TA_PATH.into()
 }
 
+/// Returns true when system properties indicate a MediaTek SoC.
+fn is_mediatek_device() -> bool {
+    let soc_mfr = props::first(&["ro.soc.manufacturer", "ro.hardware.chipname"]).to_lowercase();
+    if soc_mfr.starts_with("mediatek") || soc_mfr.starts_with("mtk") || soc_mfr.starts_with("mt") {
+        return true;
+    }
+    // Fallback: presence of a MediaTek platform property is definitive.
+    let platform = props::first(&["ro.vendor.mediatek.platform", "ro.hardware.mediatek.platform"]);
+    !platform.is_empty()
+}
+
 /// Reads the current identifiers from system properties.
+///
+/// On MediaTek devices the TA name and search path default to TrustKernel
+/// conventions instead of the Qualcomm QSEE-COM values.
 pub fn detect_defaults() -> DeviceIdsProfile {
+    let (ta_name, ta_path) = if is_mediatek_device() {
+        (MEDIATEK_TA_NAME.into(), MEDIATEK_TA_PATH.into())
+    } else {
+        (default_ta_name(), default_ta_path())
+    };
     DeviceIdsProfile {
         brand: props::first(&["ro.product.brand", "ro.product.vendor.brand"]),
         device: props::first(&["ro.product.device", "ro.product.vendor.device"]),
@@ -136,7 +161,9 @@ pub fn detect_defaults() -> DeviceIdsProfile {
             "vendor.ril.meid2",
             "ro.ril.oem.meid2",
         ]),
-        ..DeviceIdsProfile::default()
+        ta_name,
+        ta_path,
+        dry_run: false,
     }
 }
 
