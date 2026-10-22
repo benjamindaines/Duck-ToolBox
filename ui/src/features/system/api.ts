@@ -9,7 +9,6 @@ const systemInfoSchema = z.object({
     version: z.string(),
     version_code: z.number(),
     author: z.string(),
-    update_json: z.string().nullable(),
     binary_version: z.string(),
   }),
   root_manager: z.object({ kind: z.string(), version: z.string().nullable() }).nullable(),
@@ -27,26 +26,6 @@ const systemInfoSchema = z.object({
   }),
 })
 export type SystemInfo = z.infer<typeof systemInfoSchema>
-
-export type UpdateChannel = "stable" | "canary"
-
-const updateInfoSchema = z.object({
-  channel: z.enum(["stable", "canary"]),
-  current_version: z.string(),
-  current_version_code: z.number(),
-  available: z.boolean(),
-  version: z.string().nullable(),
-  version_code: z.number().nullable(),
-  changelog: z.string().nullable(),
-})
-export type UpdateInfo = z.infer<typeof updateInfoSchema>
-
-const installSchema = z.object({
-  version: z.string(),
-  version_code: z.number(),
-  output: z.string(),
-  reboot_required: z.boolean(),
-})
 
 const artifactsSchema = z.object({
   outputs: z.array(
@@ -74,10 +53,6 @@ export type LogEntry = z.infer<typeof logSchema>["entries"][number]
 
 export const systemApi = {
   info: () => duckd(["system", "info"], { schema: systemInfoSchema }),
-  checkUpdate: (channel: UpdateChannel) =>
-    duckd(["system", "update", "check", "--channel", channel], { schema: updateInfoSchema }),
-  installUpdate: (channel: UpdateChannel) =>
-    duckd(["system", "update", "install", "--channel", channel], { schema: installSchema }),
   artifacts: () => duckd(["system", "artifacts"], { schema: artifactsSchema }),
   log: (limit: number) => duckd(["system", "log", "--limit", String(limit)], { schema: logSchema }),
   reboot: () => duckd(["system", "reboot"]),

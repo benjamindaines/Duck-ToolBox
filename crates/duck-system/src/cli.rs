@@ -6,17 +6,12 @@ use duck_core::{
 use duck_platform::{exec, net, root};
 use serde_json::json;
 
-use crate::{
-    SystemError, artifacts,
-    error::code_of,
-    files, info,
-    update::{self, Channel},
-};
+use crate::{SystemError, artifacts, error::code_of, files, info};
 
 pub static FEATURE: ClapFeature<Command> = ClapFeature::new(
     FeatureInfo {
         id: "system",
-        summary: "Module lifecycle: system summary, updates, uninstall, reboot and links",
+        summary: "Module lifecycle: system summary, uninstall, reboot and links",
         contract: 1,
     },
     dispatch,
@@ -30,11 +25,6 @@ fn dispatch<'a>(command: Command, ctx: &'a Context) -> BoxFuture<'a, CommandResu
 pub enum Command {
     /// Module, root manager and device summary.
     Info,
-    /// Check for or install a module update.
-    Update {
-        #[command(subcommand)]
-        command: UpdateCommand,
-    },
     /// Generated output files and runtime paths.
     Artifacts,
     /// List a directory for the WebUI file picker.
@@ -47,18 +37,6 @@ pub enum Command {
     Uninstall,
     /// Reboot the device.
     Reboot,
-}
-
-#[derive(Debug, Subcommand)]
-pub enum UpdateCommand {
-    Check(ChannelArgs),
-    Install(ChannelArgs),
-}
-
-#[derive(Debug, Args, Clone)]
-pub struct ChannelArgs {
-    #[arg(long, value_enum, default_value = "stable")]
-    pub channel: Channel,
 }
 
 #[derive(Debug, Args, Clone)]
@@ -86,14 +64,6 @@ pub async fn run(command: Command, ctx: &Context) -> CommandResult {
         Command::Info => {
             info::collect(&ctx.paths, &ctx.sysroot).into_command("system.info", code_of)
         }
-        Command::Update { command } => match command {
-            UpdateCommand::Check(args) => update::check(&ctx.paths, args.channel)
-                .await
-                .into_command("system.update.check", code_of),
-            UpdateCommand::Install(args) => update::install(ctx, args.channel)
-                .await
-                .into_command("system.update.install", code_of),
-        },
         Command::Artifacts => artifacts::list(&ctx.paths).into_command("system.artifacts", code_of),
         Command::Files(args) => {
             files::list(ctx, &args.path, &args.extension).into_command("system.files", code_of)

@@ -10,7 +10,6 @@ import SectionCard from "@/core/components/SectionCard.vue"
 import ActivityList from "../components/ActivityList.vue"
 import ArtifactsCard from "../components/ArtifactsCard.vue"
 import MaintenanceCard from "../components/MaintenanceCard.vue"
-import UpdateCard from "../components/UpdateCard.vue"
 import { useSystemI18n } from "../i18n"
 import { useSystemInfo } from "../queries"
 
@@ -52,8 +51,6 @@ const rows = computed(() => {
         <KeyValueList :rows="rows" />
       </QueryState>
     </SectionCard>
-
-    <UpdateCard />
 
     <SectionCard :title="t('activity.title')">
       <template #action>

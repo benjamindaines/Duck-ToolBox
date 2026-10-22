@@ -5,7 +5,6 @@ import { localeFiles } from "@/core/i18n"
 
 import { NAMESPACE } from "./i18n"
 import DeviceWidget from "./widgets/DeviceWidget.vue"
-import UpdateBanner from "./widgets/UpdateBanner.vue"
 
 export default defineFeature({
   id: "system",
@@ -24,6 +23,6 @@ export default defineFeature({
   ],
   messages: localeFiles(import.meta.glob("./locales/*.json")),
   contributes: {
-    homeWidgets: [UpdateBanner, DeviceWidget],
+    homeWidgets: [DeviceWidget],
   },
 })

@@ -1,6 +1,6 @@
 [package]
 name = "duck-system"
-description = "Module lifecycle for Duck ToolBox: system summary, in-app updates, uninstall, reboot and links"
+description = "Module lifecycle for Duck ToolBox: system summary, uninstall, reboot and links"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -16,7 +16,6 @@ duck-platform.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
-zip.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

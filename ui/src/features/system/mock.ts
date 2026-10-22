@@ -14,7 +14,6 @@ const mock: MockModule = {
         version: "v0.1.0",
         version_code: 10,
         author: "Eltavine & KOW & MhmRdd",
-        update_json: "https://raw.githubusercontent.com/eltavine/Duck-ToolBox/main/update.json",
         binary_version: "0.1.0",
       },
       root_manager: { kind: "kernel-su", version: "ksud 3.1.0" },
@@ -30,22 +29,6 @@ const mock: MockModule = {
         kernel_release: "6.1.134-android14-11-gd2b",
         selinux: "enforcing",
       },
-    }),
-    "system.update.check": (_args, flags) => ({
-      channel: flags.channel === "canary" ? "canary" : "stable",
-      current_version: "v0.1.0",
-      current_version_code: 10,
-      available: true,
-      version: flags.channel === "canary" ? "v0.1.1" : "v0.2.0",
-      version_code: flags.channel === "canary" ? 57 : 20,
-      changelog:
-        "- Tricky Store manager with TEESimulator and OhMyKeymint support\n- New WebUI following the KernelSU theme\n- [Full changelog](https://github.com/eltavine/Duck-ToolBox)",
-    }),
-    "system.update.install": () => ({
-      version: "v0.2.0",
-      version_code: 20,
-      output: "- Installing module\n- Done",
-      reboot_required: true,
     }),
     "system.artifacts": () => ({
       outputs: [

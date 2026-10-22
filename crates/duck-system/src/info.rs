@@ -19,7 +19,6 @@ pub struct ModuleIdentity {
     pub version: String,
     pub version_code: u64,
     pub author: String,
-    pub update_json: Option<String>,
     /// Version of the `duckd` binary, which ships inside the module.
     pub binary_version: &'static str,
 }
@@ -80,7 +79,6 @@ pub fn module_identity(paths: &AppPaths) -> Result<ModuleIdentity> {
             .and_then(|value| value.parse().ok())
             .unwrap_or(0),
         author: text("author"),
-        update_json: props.get("updateJson").cloned(),
         binary_version: env!("CARGO_PKG_VERSION"),
     })
 }
@@ -146,15 +144,11 @@ mod tests {
         fs::create_dir_all(&root).unwrap();
         fs::write(
             root.join("module.prop"),
-            "id=duck-toolbox\nname=Duck ToolBox\nversion=v1.2.0\nversionCode=12\nupdateJson=https://example.com/u.json\n",
+            "id=duck-toolbox\nname=Duck ToolBox\nversion=v1.2.0\nversionCode=12\n",
         )
         .unwrap();
         let identity = module_identity(&AppPaths::for_root(&root, &root)).unwrap();
         assert_eq!(identity.version_code, 12);
-        assert_eq!(
-            identity.update_json.as_deref(),
-            Some("https://example.com/u.json")
-        );
 
         let sysroot = Sysroot::new(dir.path().join("sys"));
         fs::create_dir_all(sysroot.path("/proc/sys/kernel")).unwrap();

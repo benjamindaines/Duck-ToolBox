@@ -37,28 +37,6 @@ describe.skipIf(!hasDuckd)("system API against the real duckd", CONTRACT, () => 
     expect(info.device.security_patch).toBe("2026-09-05")
   })
 
-  it("checks the stable channel against updateJson", async () => {
-    const routes: Record<string, string> = {}
-    server = await serve(routes)
-    routes["/CHANGELOG.md"] =
-      "# Changelog\n\n## v9.0.0\n\n- New things\n\n## v0.0.1\n\n- Old things\n"
-    routes["/update.json"] = JSON.stringify({
-      versionCode: 900,
-      version: "v9.0.0",
-      zipUrl: server.url("/duck-toolbox-v9.0.0.zip"),
-      changelog: server.url("/CHANGELOG.md"),
-    })
-    const updateJson = server.url("/update.json")
-    host = installHost({
-      moduleProp: `id=duck-toolbox\nname=Duck ToolBox\nversion=v0.0.1\nversionCode=1\nauthor=test\ndescription=test\nupdateJson=${updateJson}\n`,
-    })
-    const update = await systemApi.checkUpdate("stable")
-    expect(update.available).toBe(true)
-    expect(update.version).toBe("v9.0.0")
-    expect(update.changelog).toContain("New things")
-    expect(update.changelog).not.toContain("Old things")
-  })
-
   it("lists outputs, files and the command log", async () => {
     host = installHost({ files: { "/sdcard/Download/keybox.xml": "<AndroidAttestation/>" } })
     await systemApi.info()
