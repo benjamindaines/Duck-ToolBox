@@ -133,9 +133,7 @@ test("can disable PIF even when its configuration page reports an error", async 
   await open("/play-integrity/config", { query: { "invalid-pif": "1" } })
   await expect(page.getByText("Invalid configuration fixture", { exact: true })).toBeVisible()
   await page.getByRole("button", { name: "Disable PIF now", exact: true }).click()
-  await expect(
-    page.getByRole("switch", { name: "Enable the engine", exact: true }),
-  ).toHaveCount(0)
+  await expect(page.getByRole("switch", { name: "Enable the engine", exact: true })).toHaveCount(0)
   await expect(
     page
       .getByText(/PIF is disabled\. Configuration and other toolbox features are retained\./)
