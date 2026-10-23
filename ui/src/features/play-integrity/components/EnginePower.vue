@@ -77,7 +77,11 @@ async function toggle(enabled: boolean) {
     <p v-if="power.error.value" role="alert" class="text-destructive mt-2 text-sm">
       {{ String(power.error.value) }}
     </p>
-    <p v-for="issue in power.data.value?.issues ?? []" :key="issue.step" class="mt-2 text-xs break-words">
+    <p
+      v-for="issue in power.data.value?.issues ?? []"
+      :key="issue.step"
+      class="mt-2 text-xs break-words"
+    >
       {{ issue.step }}: {{ issue.message }}
     </p>
   </section>
