@@ -142,7 +142,7 @@ fn rotate_if_needed(paths: &AppPaths) {
 mod tests {
     use serde_json::json;
 
-    use super::{append, page, tail, MAX_LOG_MESSAGE_CHARS, MAX_LOG_PAGE_SIZE};
+    use super::{MAX_LOG_MESSAGE_CHARS, MAX_LOG_PAGE_SIZE, append, page, tail};
     use crate::AppPaths;
 
     #[test]
@@ -151,17 +151,23 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
         let paths = AppPaths::for_root(&dir, &dir);
         for ts in 0..45 {
-            append(&paths, &json!({
-                "ok": false, "command": "demo",
-                "error": { "code": "failed", "message": "界".repeat(900) },
-                "ts": ts,
-            }));
+            append(
+                &paths,
+                &json!({
+                    "ok": false, "command": "demo",
+                    "error": { "code": "failed", "message": "界".repeat(900) },
+                    "ts": ts,
+                }),
+            );
         }
         let first = page(&paths, 200, 0).unwrap();
         assert_eq!(first.entries.len(), MAX_LOG_PAGE_SIZE);
         assert_eq!(first.entries[0].ts, 44);
         assert_eq!(first.next_offset, Some(20));
-        assert_eq!(first.entries[0].message.as_ref().unwrap().chars().count(), MAX_LOG_MESSAGE_CHARS + 1);
+        assert_eq!(
+            first.entries[0].message.as_ref().unwrap().chars().count(),
+            MAX_LOG_MESSAGE_CHARS + 1
+        );
         assert!(first.entries[0].message.as_ref().unwrap().ends_with('…'));
         let second = page(&paths, 20, 20).unwrap();
         assert_eq!(second.entries[0].ts, 24);
