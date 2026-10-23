@@ -107,8 +107,8 @@ async function importFile(event: Event) {
     <nav :aria-label="t('meta.title')" class="flex gap-1 overflow-x-auto px-4 py-2">
       <RouterLink
         v-for="tab in tabs"
-        replace
         :key="tab"
+        replace
         :to="tab === 'status' ? '/play-integrity' : `/play-integrity/${tab}`"
         class="state-layer relative focus-visible:ring-ring/50 inline-flex min-h-12 shrink-0 items-center rounded-xl px-4 text-sm font-medium outline-none transition-colors focus-visible:ring-3"
         :class="
