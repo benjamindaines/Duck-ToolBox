@@ -135,7 +135,7 @@ test("can disable PIF even when its configuration page reports an error", async 
   await page.getByRole("button", { name: "Disable PIF now", exact: true }).click()
   await expect(
     page.getByRole("switch", { name: "Enable the engine", exact: true }),
-  ).not.toBeChecked()
+  ).toHaveCount(0)
   await expect(
     page
       .getByText(/PIF is disabled\. Configuration and other toolbox features are retained\./)
@@ -156,20 +156,27 @@ test("disabling cancels generation and the independent power switch can enable a
   await expect(page.getByRole("switch", { name: "Enable the engine", exact: true })).toBeChecked()
 })
 
-
-test("keeps engine enable controls on status while retaining emergency stop elsewhere", async ({ page, open }) => {
+test("keeps engine enable controls on status while retaining emergency stop elsewhere", async ({
+  page,
+  open,
+}) => {
   await open("/play-integrity")
   await expect(page.getByRole("switch", { name: "Enable the engine", exact: true })).toBeVisible()
   for (const tab of ["Configuration", "Fingerprints", "Compatibility", "Diagnostics", "Licenses"]) {
     await page.getByRole("link", { name: tab, exact: true }).click()
-    await expect(page.getByRole("switch", { name: "Enable the engine", exact: true })).toHaveCount(0)
+    await expect(
+      page.getByRole("switch", { name: "Enable the engine", exact: true }),
+    ).toHaveCount(0)
     await expect(page.getByRole("button", { name: "Disable PIF now", exact: true })).toBeVisible()
   }
   await page.getByRole("link", { name: "Status", exact: true }).click()
   await expect(page.getByRole("switch", { name: "Enable the engine", exact: true })).toBeVisible()
 })
 
-test("returns home from every Play Integrity tab, including direct links", async ({ page, open }) => {
+test("returns home from every Play Integrity tab, including direct links", async ({
+  page,
+  open,
+}) => {
   for (const route of [
     "/play-integrity",
     "/play-integrity/config",
@@ -184,20 +191,32 @@ test("returns home from every Play Integrity tab, including direct links", async
   }
 })
 
-test("scopes the pressed tab state layer instead of overlaying the viewport", async ({ page, open }) => {
+test("scopes the pressed tab state layer instead of overlaying the viewport", async ({
+  page,
+  open,
+}) => {
   await open("/play-integrity")
-  for (const tab of ["Status", "Configuration", "Fingerprints", "Compatibility", "Diagnostics", "Licenses"]) {
-    const geometry = await page.getByRole("link", { name: tab, exact: true }).evaluate((element) => {
-      const layer = getComputedStyle(element, "::before")
-      const trigger = element.getBoundingClientRect()
-      return {
-        position: getComputedStyle(element).position,
-        layerWidth: parseFloat(layer.width),
-        layerHeight: parseFloat(layer.height),
-        triggerWidth: trigger.width,
-        triggerHeight: trigger.height,
-      }
-    })
+  for (const tab of [
+    "Status",
+    "Configuration",
+    "Fingerprints",
+    "Compatibility",
+    "Diagnostics",
+    "Licenses",
+  ]) {
+    const geometry = await page
+      .getByRole("link", { name: tab, exact: true })
+      .evaluate((element) => {
+        const layer = getComputedStyle(element, "::before")
+        const trigger = element.getBoundingClientRect()
+        return {
+          position: getComputedStyle(element).position,
+          layerWidth: parseFloat(layer.width),
+          layerHeight: parseFloat(layer.height),
+          triggerWidth: trigger.width,
+          triggerHeight: trigger.height,
+        }
+      })
     expect(geometry.position).toBe("relative")
     expect(geometry.layerWidth).toBeGreaterThan(0)
     expect(geometry.layerWidth).toBeLessThanOrEqual(geometry.triggerWidth + 1)
@@ -207,7 +226,7 @@ test("scopes the pressed tab state layer instead of overlaying the viewport", as
 
 test("preserves an uncommitted configuration draft across tab changes", async ({ page, open }) => {
   await open("/play-integrity/config")
-  const draft = "MODEL=DraftOnly\\nEXTRA=keep"
+  const draft = "MODEL=DraftOnly\nEXTRA=keep"
   await page.getByLabel("Configuration", { exact: true }).fill(draft)
   await page.getByRole("link", { name: "Diagnostics", exact: true }).click()
   await page.getByRole("link", { name: "Configuration", exact: true }).click()
