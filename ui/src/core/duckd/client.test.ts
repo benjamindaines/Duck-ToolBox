@@ -7,11 +7,7 @@ import { setBridge } from "@/core/bridge"
 import { duckd } from "./client"
 import { DuckError, parseEnvelope } from "./envelope"
 
-function fakeBridge(
-  stdout: string,
-  host: RootBridge["hostModule"] = () => null,
-  exitCode = 0,
-) {
+function fakeBridge(stdout: string, host: RootBridge["hostModule"] = () => null, exitCode = 0) {
   const commands: string[] = []
   const bridge: RootBridge = {
     available: true,
@@ -89,14 +85,14 @@ describe("duckd", () => {
       code: "no_envelope",
       details: { stdout: "", stderr: "", exitCode: 137 },
     })
-    expect(error.message).toContain("137")
+    expect(String(error)).toContain("137")
   })
 
   it("reports a successful exit with missing output as a protocol error", async () => {
     fakeBridge("")
     const error = await duckd(["system", "log"]).catch((caught: unknown) => caught)
     expect(error).toMatchObject({ code: "no_envelope" })
-    expect(error.message).toContain("exit code: 0")
+    expect(String(error)).toContain("exit code: 0")
   })
 
   it("rejects envelopes from a newer API", async () => {
