@@ -107,9 +107,10 @@ async function importFile(event: Event) {
     <nav :aria-label="t('meta.title')" class="flex gap-1 overflow-x-auto px-4 py-2">
       <RouterLink
         v-for="tab in tabs"
+        replace
         :key="tab"
         :to="tab === 'status' ? '/play-integrity' : `/play-integrity/${tab}`"
-        class="state-layer focus-visible:ring-ring/50 inline-flex min-h-12 shrink-0 items-center rounded-xl px-4 text-sm font-medium outline-none transition-colors focus-visible:ring-3"
+        class="state-layer relative focus-visible:ring-ring/50 inline-flex min-h-12 shrink-0 items-center rounded-xl px-4 text-sm font-medium outline-none transition-colors focus-visible:ring-3"
         :class="
           section === tab ? 'bg-secondary text-secondary-foreground' : 'text-muted-foreground'
         "
@@ -117,7 +118,7 @@ async function importFile(event: Event) {
         >{{ t(`nav.${tab}`) }}</RouterLink
       >
     </nav>
-    <EnginePower class="px-4 pt-4" />
+    <EnginePower :stop-only="section !== 'status'" class="px-4 pt-4" />
     <fieldset :disabled="s.busy.value" class="flex min-w-0 flex-1 flex-col gap-6 p-4">
       <RecoveryNotice />
       <QueryState
