@@ -1,0 +1,247 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Independent CLI integration tests; no toolbox executable or runtime is involved.
+use serde_json::{Value, json};
+use std::{
+    fs,
+    io::Write,
+    process::{Command, Stdio},
+    time::{Duration, Instant},
+};
+
+fn request(root: &std::path::Path, op: &str, input: Value) -> Value {
+    let mut child = Command::new(env!("CARGO_BIN_EXE_pif-engine"))
+        .args(["request", op])
+        .env("PIF_ENGINE_DATA", root.join("data"))
+        .env("PIF_ENGINE_MODULE", root.join("module"))
+        .env("PIF_ENGINE_SYSROOT", root.join("sys"))
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(serde_json::to_string(&input).unwrap().as_bytes())
+        .unwrap();
+    let output = child.wait_with_output().unwrap();
+    serde_json::from_slice(&output.stdout).unwrap()
+}
+fn fixture(script: &str) -> tempfile::TempDir {
+    let root = tempfile::tempdir().unwrap();
+    fs::create_dir_all(root.path().join("module/scripts")).unwrap();
+    fs::write(root.path().join("module/scripts/autopif4.sh"), script).unwrap();
+    fs::write(root.path().join("module/scripts/migrate.sh"), "exit 0\n").unwrap();
+    root
+}
+fn terminal(root: &std::path::Path, id: &Value) -> Value {
+    let end = Instant::now() + Duration::from_secs(10);
+    loop {
+        let result = request(root, "task-status", json!({"id":id}));
+        if result["data"]["state"] != "running" {
+            return result;
+        }
+        assert!(Instant::now() < end, "worker failed to terminate");
+        std::thread::sleep(Duration::from_millis(50));
+    }
+}
+#[test]
+fn generation_previews_without_publishing_and_import_keeps_source() {
+    let root = fixture(
+        "echo 'fetching fixture'; printf 'MODEL=Fixture\nSECURITY_PATCH=2026-10-05\n' > custom.pif.prop\n",
+    );
+    let status = request(root.path(), "status", json!({}));
+    assert_eq!(status["data"]["options"]["enabled"], true);
+    let started = request(root.path(), "task-start", json!({"strong":true}));
+    assert_eq!(started["ok"], true, "{started}");
+    let result = terminal(root.path(), &started["data"]["id"]);
+    assert_eq!(result["data"]["state"], "completed", "{result}");
+    assert_eq!(result["data"]["result"]["entries"]["MODEL"], "Fixture");
+    assert!(!root.path().join("data/custom.pif.json").exists());
+    fs::create_dir_all(root.path().join("sys/source")).unwrap();
+    fs::write(
+        root.path().join("sys/source/pif.prop"),
+        "MODEL=Original\nEXTRA=keep",
+    )
+    .unwrap();
+    let imported = request(
+        root.path(),
+        "import-preview",
+        json!({"source":"/source/pif.prop"}),
+    );
+    assert_eq!(imported["data"]["entries"]["EXTRA"], "keep");
+    assert_eq!(
+        fs::read_to_string(root.path().join("sys/source/pif.prop")).unwrap(),
+        "MODEL=Original\nEXTRA=keep"
+    );
+}
+#[test]
+fn cancellation_terminates_worker_and_preserves_live_config() {
+    let root = fixture("sleep 30; echo MODEL=unexpected > custom.pif.prop\n");
+    let started = request(root.path(), "task-start", json!({}));
+    let id = &started["data"]["id"];
+    assert_eq!(
+        request(root.path(), "task-cancel", json!({"id":id}))["ok"],
+        true
+    );
+    let result = terminal(root.path(), id);
+    assert_eq!(result["data"]["state"], "cancelled", "{result}");
+    assert!(!root.path().join("data/custom.pif.json").exists());
+}
+#[test]
+fn options_conflicts_and_stale_apply_are_explicit() {
+    let root = fixture("exit 1\n");
+    let conflict = root.path().join("sys/data/adb/modules/playintegrityfix");
+    fs::create_dir_all(&conflict).unwrap();
+    fs::write(conflict.join("module.prop"), "id=playintegrityfix").unwrap();
+    assert_eq!(
+        request(root.path(), "status", json!({}))["data"]["state"],
+        "conflict"
+    );
+    fs::write(conflict.join("disable"), "").unwrap();
+    let preview = request(root.path(), "preview", json!({"content":"MODEL=A"}));
+    let applied = request(
+        root.path(),
+        "apply",
+        json!({"content":"MODEL=A","revision":preview["data"]["revision"]}),
+    );
+    assert_eq!(applied["ok"], true);
+    assert_eq!(
+        request(
+            root.path(),
+            "apply",
+            json!({"content":"MODEL=B","revision":preview["data"]["revision"]})
+        )["ok"],
+        false
+    );
+    let disabled = request(
+        root.path(),
+        "options",
+        json!({"enabled":false,"mode":"scripts-only"}),
+    );
+    assert_eq!(disabled["ok"], true);
+    assert_eq!(
+        request(root.path(), "status", json!({}))["data"]["state"],
+        "disabled"
+    );
+    assert_eq!(
+        request(
+            root.path(),
+            "options",
+            json!({"app_replace_list":"/system/../data"})
+        )["ok"],
+        false
+    );
+}
+#[test]
+fn insecure_fetch_is_rejected_without_network() {
+    let output = Command::new(env!("CARGO_BIN_EXE_pif-engine"))
+        .args(["fetch", "-O", "/tmp/not-created", "http://localhost/"])
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("only HTTPS"));
+}
+
+#[test]
+fn magisk_directory_is_not_zygisk_runtime_evidence() {
+    let root = fixture("exit 0\n");
+    fs::create_dir_all(root.path().join("sys/data/adb/magisk")).unwrap();
+    let result = request(root.path(), "status", json!({}));
+    assert_eq!(result["data"]["zygisk_detected"], false);
+    let provider = root.path().join("sys/data/adb/modules/zygisksu");
+    fs::create_dir_all(&provider).unwrap();
+    fs::write(provider.join("module.prop"), "id=zygisksu").unwrap();
+    assert_eq!(
+        request(root.path(), "status", json!({}))["data"]["zygisk_detected"],
+        true
+    );
+    fs::write(provider.join("disable"), "").unwrap();
+    assert_eq!(
+        request(root.path(), "status", json!({}))["data"]["zygisk_detected"],
+        false
+    );
+}
+
+#[test]
+fn standalone_file_migration_preserves_shell_metacharacters_as_data() {
+    let root = tempfile::tempdir().unwrap();
+    let source = root.path().join("source.json");
+    let output = root.path().join("custom.pif.json");
+    let marker = root.path().join("must-not-exist");
+    let payload = format!(r#"$(touch {}) ' \" quoted"#, marker.display());
+    fs::write(
+        &source,
+        serde_json::to_vec(&json!({"EXTRA":payload,"MODEL":"a"})).unwrap(),
+    )
+    .unwrap();
+    fs::write(&output, "original").unwrap();
+    let result = Command::new(env!("CARGO_BIN_EXE_pif-engine"))
+        .arg("migrate-file")
+        .arg(&source)
+        .arg(&output)
+        .args(["--advanced", "--format", "json"])
+        .output()
+        .unwrap();
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stdout)
+    );
+    let migrated: Value = serde_json::from_slice(&fs::read(&output).unwrap()).unwrap();
+    assert_eq!(migrated["EXTRA"], payload);
+    assert_eq!(
+        fs::read_to_string(root.path().join("custom.pif.json.bak")).unwrap(),
+        "original"
+    );
+    assert!(!marker.exists());
+}
+
+#[test]
+fn timed_out_jobs_fail_without_publishing() {
+    let root = fixture("sleep 30; echo MODEL=unexpected > custom.pif.prop\n");
+    let started = request(root.path(), "task-start", json!({"timeout_seconds":1}));
+    let result = terminal(root.path(), &started["data"]["id"]);
+    assert_eq!(result["data"]["state"], "failed", "{result}");
+    assert!(
+        result["data"]["error"]
+            .as_str()
+            .unwrap()
+            .contains("timed out")
+    );
+    assert!(!root.path().join("data/custom.pif.json").exists());
+    assert_eq!(
+        request(root.path(), "task-start", json!({"timeout_seconds":121}))["ok"],
+        false
+    );
+}
+
+#[test]
+fn lifecycle_uses_cleanup_when_disabled_and_records_the_boot_options() {
+    let root = fixture("exit 0\n");
+    fs::write(
+        root.path().join("module/scripts/stage.sh"),
+        "printf '%s\\n' \"$1\" >> \"$PIF_ENGINE_DATA/stage.trace\"\n",
+    )
+    .unwrap();
+    request(root.path(), "options", json!({"enabled":false}));
+    let output = Command::new(env!("CARGO_BIN_EXE_pif-engine"))
+        .args(["stage", "early"])
+        .env("PIF_ENGINE_DATA", root.path().join("data"))
+        .env("PIF_ENGINE_MODULE", root.path().join("module"))
+        .env("PIF_ENGINE_SYSROOT", root.path().join("sys"))
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+    assert_eq!(
+        fs::read_to_string(root.path().join("data/stage.trace")).unwrap(),
+        "cleanup\n"
+    );
+    let evidence: Value =
+        serde_json::from_slice(&fs::read(root.path().join("data/boot.json")).unwrap()).unwrap();
+    assert_eq!(evidence["options"]["enabled"], false);
+}

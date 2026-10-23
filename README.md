@@ -8,6 +8,11 @@ changed, removed or added on its own.
 
 ## Tools
 
+- **Play Integrity**: an independently built GPLv3 engine derived from Play Integrity Fork,
+  with configuration previews, migration, fingerprint generation, compatibility settings and
+  diagnostics in the WebUI. It is enabled by default; injection requires Zygisk and a saved
+  configuration. The management code remains MIT; see [licensing boundaries](THIRD_PARTY_NOTICES.md).
+
 - **Tricky Store manager**: a complete port of KOWX712's
   [Tricky Addon: Update Target List](https://github.com/KOWX712/Tricky-Addon-Update-Target-List),
   for whichever keystore module is active:
@@ -295,6 +300,24 @@ pnpm locales:import <Tricky-Addon>/webui/public/locales/strings   # refresh tran
 
 On Windows, `pwsh ./scripts/build.ps1 -PackageModule` builds everything with `cargo-ndk`
 and writes the module zip to `dist/`.
+
+The bundled Play Integrity engine additionally requires JDK 21, Android SDK / Build
+Tools 37 and NDK 30.0.16248370. Build it independently and validate both release channels:
+
+```sh
+python3 scripts/build-play-integrity.py
+cargo test --locked --manifest-path components/play-integrity/Cargo.toml
+python3 scripts/test-play-integrity-native.py
+python3 scripts/test-play-integrity-scripts.py
+python3 scripts/package-module.py --channel stable
+python3 scripts/package-module.py --channel nightly
+```
+
+Channel metadata is written into each ZIP without changing `module/module.prop`.
+Nightly packages use the repository's commit-count version code and `canary` suffix.
+The engine's source archive, dependency notices and licensing boundaries are checked
+before either package is created. See [the rule review](components/play-integrity/RULES.md)
+for the source references and required device validation.
 
 **On a real KernelSU.** `scripts/device-test.sh <module zip>` prepares a disposable
 userdebug emulator (or any device with root adbd) and runs `ui/e2e-device` there:

@@ -48,6 +48,20 @@ export default defineFeature({
   ],
   messages: withDownloadedTranslations(localeFiles(import.meta.glob("./locales/*.json"))),
   contributes: {
+    securityPatchTargets: [
+      {
+        id: "tricky-store",
+        labelKey: `${NAMESPACE}.meta.title`,
+        async preview(patch) {
+          const status = await trickyStoreApi.status()
+          if (!status.active?.active) return null
+          if (status.config_error) throw new Error(status.config_error)
+          return trickyStoreApi.patchPreview(patch)
+        },
+        apply: (preview) => trickyStoreApi.patchApply(preview),
+        restore: (backup) => trickyStoreApi.patchRestore(backup),
+      },
+    ],
     keyboxTargets: [
       {
         id: "tricky-store",

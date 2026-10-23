@@ -1,0 +1,72 @@
+#!/system/bin/sh
+# SPDX-License-Identifier: GPL-3.0-only
+# Derived from Play Integrity Fork boot scripts (23ec56c2440c4fd1a5e893a23ef7861d6366a828).
+# Modified 2026-10-24: component-owned state and root-manager lifecycle integration.
+set -eu
+MODPATH="$PIF_ENGINE_ROOT"
+export MODPATH PIF_ENGINE_DATA PIF_ENGINE_SCRIPTS PIF_ENGINE_MODE
+
+# Installer shell functions do not cross the standalone process boundary.
+ui_print() { printf '%s\n' "$*"; }
+
+# Root managers provide a consistent BusyBox ash and resetprop implementation.
+for bin in /data/adb/ksu/bin /data/adb/ap/bin /data/adb/magisk; do
+  [ -x "$bin/resetprop" ] || continue
+  PATH="$bin:$PATH"
+  export PATH
+  break
+done
+
+cleanup_overlays() {
+  manifest="$PIF_ENGINE_DATA/overlay-paths.txt"
+  [ -f "$manifest" ] || return 0
+  while IFS= read -r relative; do
+    case "$relative" in system/*) ;; *) continue ;; esac
+    case "$relative" in *..* | *\\*) continue ;; esac
+    target="$PIF_ENGINE_ROOT/$relative"
+    if [ -d "$target" ]; then
+      rm -f "$target/.replace"
+      rmdir "$target" 2>/dev/null || true
+    else
+      rm -f "$target"
+    fi
+  done < "$manifest"
+  rm -f "$manifest"
+}
+
+case "$1" in
+  cleanup)
+    cleanup_overlays
+    if [ -f "$PIF_ENGINE_DATA/uninstall.sh" ]; then sh -e "$PIF_ENGINE_DATA/uninstall.sh" && rm -f "$PIF_ENGINE_DATA/uninstall.sh"; fi
+    ;;
+  setup)
+    # Preserve user state across upgrades. No implicit import of another module's config.
+    mkdir -p "$PIF_ENGINE_DATA"
+    chmod 0700 "$PIF_ENGINE_DATA"
+    cleanup_overlays
+    if [ "$PIF_ENGINE_MODE" != "scripts-only" ]; then
+      set +eu
+      . "$PIF_ENGINE_SCRIPTS/common_func.sh"
+      . "$PIF_ENGINE_SCRIPTS/common_setup.sh"
+    fi
+    ;;
+  early)
+    cleanup_overlays
+    # Upstream relies on non-fatal resetprop and optional Magisk commands.
+    set +eu
+    . "$PIF_ENGINE_SCRIPTS/post-fs-data.sh"
+    ;;
+  late)
+    [ ! -f /data/adb/disable_prop_handler ] || exit 0
+    set +eu
+    . "$PIF_ENGINE_SCRIPTS/service.sh"
+    ;;
+  uninstall)
+    cleanup_overlays
+    if [ -f "$PIF_ENGINE_DATA/uninstall.sh" ]; then
+      sh -e "$PIF_ENGINE_DATA/uninstall.sh"
+    fi
+    rm -rf "$PIF_ENGINE_DATA"
+    ;;
+  *) exit 2 ;;
+esac

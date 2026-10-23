@@ -21,6 +21,8 @@ static FEATURES: &[&dyn Feature] = &[
     &duck_device_ids::FEATURE,
     #[cfg(feature = "tricky-store")]
     &duck_tricky_store::FEATURE,
+    #[cfg(feature = "play-integrity")]
+    &duck_play_integrity::FEATURE,
     #[cfg(feature = "system")]
     &duck_system::FEATURE,
 ];

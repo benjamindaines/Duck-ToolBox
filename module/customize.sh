@@ -51,6 +51,13 @@ umask 077
 repair_runtime
 normalize_boot_hash
 
+if [ -f "$MODPATH/play-integrity/pif-engine" ]; then
+  chmod 0755 "$MODPATH/play-integrity/pif-engine"
+  PIF_ENGINE_MODULE="$MODPATH/play-integrity" \
+    "$MODPATH/play-integrity/pif-engine" stage setup >/dev/null 2>&1 \
+    || abort "! Play Integrity engine setup failed."
+fi
+
 ui_print " "
 ui_print "! Duck ToolBox is not part of Tricky Store, TEESimulator or OhMyKeymint."
 ui_print "  Do not report its issues to those projects."

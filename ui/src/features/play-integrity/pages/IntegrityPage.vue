@@ -1,0 +1,376 @@
+<script setup lang="ts">
+import { computed, ref, watch, useTemplateRef } from "vue"
+import { Save, RefreshCw, FileSliders, FileCode } from "@lucide/vue"
+import { useI18n } from "vue-i18n"
+import { RouterLink } from "vue-router"
+import { Button } from "@/components/ui/button"
+import { Switch } from "@/components/ui/switch"
+import { Field, FieldContent, FieldDescription, FieldLabel } from "@/components/ui/field"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import type { PickedFile } from "@/core/components/FilePickerDialog.vue"
+import FilePickerDialog from "@/core/components/FilePickerDialog.vue"
+import QueryState from "@/core/components/QueryState.vue"
+import SectionCard from "@/core/components/SectionCard.vue"
+import { useCopy } from "@/core/links"
+import { notifyError } from "@/core/notify"
+import ConfigFields from "../components/ConfigFields.vue"
+import { integrityApi } from "../api"
+import ConfigPreview from "../components/ConfigPreview.vue"
+import LicenseFooter from "../components/LicenseFooter.vue"
+import { useIntegrity } from "../use-integrity"
+const props = withDefaults(defineProps<{ section?: string }>(), { section: "status" })
+const s = useIntegrity()
+const { t } = s
+const global = useI18n()
+const copy = useCopy()
+const upload = useTemplateRef<HTMLInputElement>("upload")
+const strong = ref(true),
+  match = ref(false),
+  list = ref(""),
+  picker = ref(false)
+const source = ref("/data/adb/modules/playintegrityfix/custom.pif.prop")
+const tabs = ["status", "config", "generate", "compatibility", "diagnostics", "license"] as const
+const fields = ref<Record<string, string> | null>(null)
+async function editFields() {
+  await s.action(async () => {
+    const parsed = await integrityApi.preview(s.content.value)
+    fields.value = { ...parsed.entries }
+  })
+}
+function updateFields(value: Record<string, string>) {
+  fields.value = value
+  s.content.value = JSON.stringify(value, null, 2)
+}
+watch(s.config.data, (value) => {
+  if (value && fields.value) fields.value = { ...value.entries }
+})
+function importSource() {
+  fields.value = null
+  void s.importSource(source.value)
+}
+const data = computed(() => s.status.data.value)
+watch(
+  data,
+  (value) => {
+    if (value) list.value = value.app_replace_list
+  },
+  { immediate: true },
+)
+function picked(file: PickedFile) {
+  fields.value = null
+  if ("path" in file) {
+    source.value = file.path
+    void s.importSource(file.path)
+  } else {
+    s.content.value = file.content
+    void s.previewContent(true)
+  }
+}
+function exportContent(json = false) {
+  const content = json ? s.config.data.value?.json : s.config.data.value?.content
+  if (content === undefined) return
+  const url = URL.createObjectURL(new Blob([content], { type: "text/plain" }))
+  const anchor = document.createElement("a")
+  anchor.href = url
+  anchor.download = `custom.pif.${json || content.trimStart().startsWith("{") ? "json" : "prop"}`
+  anchor.click()
+  URL.revokeObjectURL(url)
+}
+async function importFile(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  try {
+    if (file.size > 65536) throw new Error(t("fileLimit"))
+    fields.value = null
+    s.content.value = await file.text()
+    await s.previewContent(true)
+  } catch (error) {
+    notifyError(error)
+  } finally {
+    input.value = ""
+  }
+}
+</script>
+<template>
+  <div class="flex min-h-full flex-col">
+    <nav :aria-label="t('meta.title')" class="flex gap-1 overflow-x-auto px-4 py-2">
+      <RouterLink
+        v-for="tab in tabs"
+        :key="tab"
+        :to="tab === 'status' ? '/play-integrity' : `/play-integrity/${tab}`"
+        class="state-layer focus-visible:ring-ring/50 inline-flex min-h-12 shrink-0 items-center rounded-xl px-4 text-sm font-medium outline-none transition-colors focus-visible:ring-3"
+        :class="
+          section === tab ? 'bg-secondary text-secondary-foreground' : 'text-muted-foreground'
+        "
+        :aria-current="section === tab ? 'page' : undefined"
+        >{{ t(`nav.${tab}`) }}</RouterLink
+      >
+    </nav>
+    <fieldset :disabled="s.busy.value" class="flex min-w-0 flex-1 flex-col gap-6 p-4">
+      <QueryState
+        :loading="s.status.isPending.value"
+        :error="s.status.error.value"
+        :skeleton-rows="2"
+        @retry="s.refresh()"
+      >
+        <SectionCard
+          v-if="props.section === 'status'"
+          :title="t('nav.status')"
+          :description="t('limits')"
+        >
+          <p class="text-lg font-semibold">
+            {{
+              s.status.data.value
+                ? global.t(`playIntegrity.states.${s.status.data.value.state}`)
+                : "—"
+            }}
+          </p>
+          <p v-if="data?.reboot_required" class="mt-2 text-sm">{{ t("reboot") }}</p>
+          <p v-if="data?.conflicts.length" class="text-destructive mt-2 text-sm">
+            {{ data.conflicts.join(", ") }}
+          </p>
+          <Field orientation="horizontal" class="my-5">
+            <FieldContent
+              ><FieldLabel for="pif-enabled">{{ t("enabled") }}</FieldLabel
+              ><FieldDescription>{{ t("enableHelp") }}</FieldDescription></FieldContent
+            >
+            <Switch id="pif-enabled" v-model="s.options.value.enabled" />
+          </Field>
+          <Button :disabled="s.busy.value" @click="s.saveOptions(list)"
+            ><Save />{{ global.t("core.actions.save") }}</Button
+          >
+          <Button variant="ghost" :disabled="s.busy.value" @click="s.refresh()"
+            ><RefreshCw />{{ global.t("core.actions.refresh") }}</Button
+          >
+        </SectionCard>
+        <SectionCard
+          v-if="section === 'config'"
+          :title="t('nav.config')"
+          :description="t('configHelp')"
+        >
+          <QueryState
+            :loading="s.config.isPending.value"
+            :error="s.config.error.value"
+            @retry="s.refresh()"
+          >
+            <div class="mb-4 flex flex-wrap gap-2">
+              <Button
+                variant="secondary"
+                :disabled="s.busy.value"
+                @click="fields ? (fields = null) : editFields()"
+              >
+                <FileCode v-if="fields" /><FileSliders v-else />{{
+                  t(fields ? "rawEditor" : "fieldEditor")
+                }}
+              </Button>
+            </div>
+            <ConfigFields v-if="fields" :model-value="fields" @update:model-value="updateFields" />
+            <Textarea
+              v-else
+              v-model="s.content.value"
+              :aria-label="t('nav.config')"
+              class="min-h-72 font-mono text-sm"
+              spellcheck="false"
+            />
+            <div class="mt-3 flex flex-wrap gap-2">
+              <Button :disabled="s.busy.value" @click="s.previewContent(false)">{{
+                t("preview")
+              }}</Button>
+              <Button variant="outline" :disabled="s.busy.value" @click="s.previewContent(true)">{{
+                t("migrate")
+              }}</Button>
+              <Button variant="outline" @click="copy(s.content.value)">{{
+                global.t("core.actions.copy")
+              }}</Button>
+              <Button variant="outline" @click="exportContent(false)"
+                >{{ global.t("core.actions.export") }} .prop</Button
+              >
+              <Button variant="outline" @click="exportContent(true)"
+                >{{ global.t("core.actions.export") }} .json</Button
+              >
+            </div>
+            <Button variant="outline" class="mt-4" @click="upload?.click()">{{
+              global.t("core.actions.import")
+            }}</Button>
+            <input
+              ref="upload"
+              type="file"
+              accept=".json,.prop,.txt"
+              class="hidden"
+              :aria-label="global.t('core.actions.import')"
+              @change="importFile"
+            />
+            <div class="mt-4 flex flex-col gap-2">
+              <Input v-model="source" :aria-label="t('deviceFile')" />
+              <div class="flex gap-2">
+                <Button variant="outline" @click="picker = true">{{
+                  global.t("core.actions.browse")
+                }}</Button
+                ><Button variant="outline" :disabled="s.busy.value" @click="importSource">{{
+                  t("deviceFile")
+                }}</Button>
+              </div>
+            </div>
+            <Button
+              v-if="s.backup.value"
+              variant="ghost"
+              class="mt-3"
+              :disabled="s.busy.value"
+              @click="s.restore()"
+              >{{ t("restore") }}</Button
+            >
+          </QueryState>
+        </SectionCard>
+        <SectionCard
+          v-if="section === 'generate'"
+          :title="t('nav.generate')"
+          :description="t('generateHelp')"
+        >
+          <div class="flex flex-col gap-5">
+            <Field orientation="horizontal"
+              ><FieldContent
+                ><FieldLabel for="pif-strong">{{ t("strong") }}</FieldLabel
+                ><FieldDescription>{{ t("strongHelp") }}</FieldDescription></FieldContent
+              ><Switch id="pif-strong" v-model="strong"
+            /></Field>
+            <Field orientation="horizontal"
+              ><FieldLabel for="pif-match">{{ t("match") }}</FieldLabel
+              ><Switch id="pif-match" v-model="match"
+            /></Field>
+          </div>
+          <div class="mt-3 flex gap-2">
+            <Button
+              :disabled="s.busy.value || !!s.taskId.value"
+              @click="s.generate(strong, match)"
+              >{{ t("generate") }}</Button
+            ><Button
+              v-if="s.taskId.value"
+              variant="outline"
+              :disabled="s.busy.value"
+              @click="s.cancel()"
+              >{{ global.t("core.actions.cancel") }}</Button
+            >
+          </div>
+          <p v-if="s.task.value" role="status" class="mt-3 text-sm">
+            {{ global.t(`playIntegrity.tasks.${s.task.value.state}`) }}
+          </p>
+          <p
+            v-if="s.task.value?.error"
+            role="alert"
+            class="text-destructive mt-3 break-words text-sm"
+          >
+            {{ s.task.value.error }}
+          </p>
+          <pre
+            v-if="s.task.value?.output"
+            class="bg-muted mt-3 max-h-72 overflow-auto rounded-xl p-3 text-xs whitespace-pre-wrap"
+            >{{ s.task.value.output }}</pre>
+        </SectionCard>
+        <SectionCard
+          v-if="section === 'compatibility'"
+          :title="t('nav.compatibility')"
+          :description="t('compatibilityHelp')"
+        >
+          <div class="flex flex-col gap-5">
+            <Field>
+              <FieldLabel for="pif-mode">{{ t("mode") }}</FieldLabel>
+              <Select v-model="s.options.value.mode"
+                ><SelectTrigger id="pif-mode" class="w-full"><SelectValue /></SelectTrigger
+                ><SelectContent
+                  ><SelectItem value="full">{{ t("full") }}</SelectItem
+                  ><SelectItem value="scripts-only">{{
+                    t("scriptsOnly")
+                  }}</SelectItem></SelectContent
+                ></Select
+              >
+            </Field>
+            <Field
+              v-for="item in [
+                ['skipdelprop', 'skipDelete'],
+                ['skippersistprop', 'skipPersist'],
+                ['skipmatchdevice', 'skipMatch'],
+              ] as const"
+              :key="item[0]"
+              orientation="horizontal"
+            >
+              <FieldLabel :for="`pif-${item[0]}`">{{ t(item[1]) }}</FieldLabel
+              ><Switch :id="`pif-${item[0]}`" v-model="s.options.value[item[0]]" />
+            </Field>
+            <p class="text-muted-foreground text-sm">{{ t("denylistHelp") }}</p>
+            <p class="text-muted-foreground text-sm">{{ t("selinuxHelp") }}</p>
+          </div>
+          <label class="mt-3 block text-sm"
+            >{{ t("replaceList")
+            }}<Textarea
+              v-model="list"
+              class="mt-2 min-h-40 font-mono text-sm"
+              :aria-label="t('replaceList')"
+          /></label>
+          <Button class="mt-3" :disabled="s.busy.value" @click="s.saveOptions(list)">{{
+            global.t("core.actions.save")
+          }}</Button>
+        </SectionCard>
+        <SectionCard
+          v-if="section === 'diagnostics'"
+          :title="t('nav.diagnostics')"
+          :description="t('limits')"
+        >
+          <div class="flex flex-wrap gap-2">
+            <Button :disabled="s.busy.value" @click="s.diagnose()">{{ t("readLogs") }}</Button
+            ><Button variant="outline" :disabled="s.busy.value" @click="s.restart()">{{
+              t("restart")
+            }}</Button>
+          </div>
+          <pre
+            class="bg-muted mt-3 max-h-[60vh] overflow-auto rounded-xl p-3 text-xs whitespace-pre-wrap"
+            >{{ s.log.value || "—" }}</pre>
+        </SectionCard>
+        <SectionCard
+          v-if="section === 'license'"
+          :title="t('nav.license')"
+          :description="t('licenseScope')"
+          ><p class="text-sm">{{ t("attribution") }}</p>
+          <p class="text-muted-foreground mt-2 break-all font-mono text-xs">
+            {{ data?.upstream_revision }}
+          </p></SectionCard
+        >
+      </QueryState>
+      <ConfigPreview
+        v-if="s.preview.value"
+        :preview="s.preview.value"
+        :patches="s.patches.value"
+        :busy="s.busy.value"
+        @apply="s.action(s.apply)"
+        @select="
+          (id, selected) => {
+            const patch = s.patches.value.find((item) => item.target.id === id)
+            if (patch) patch.selected = selected
+          }
+        "
+        @close="s.preview.value = null"
+      />
+      <div v-if="s.backup.value" class="flex gap-2">
+        <Button variant="outline" :disabled="s.busy.value" @click="s.restart()">{{
+          t("restart")
+        }}</Button>
+      </div>
+    </fieldset>
+    <LicenseFooter />
+    <FilePickerDialog
+      v-model:open="picker"
+      extension=""
+      start="/data/adb/modules/playintegrityfix"
+      root="/"
+      @pick="picked"
+    />
+  </div>
+</template>

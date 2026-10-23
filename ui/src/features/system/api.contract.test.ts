@@ -25,6 +25,7 @@ describe.skipIf(!hasDuckd)("system API against the real duckd", CONTRACT, () => 
       "tee-attestation",
       "device-ids",
       "tricky-store",
+      "play-integrity",
       "system",
     ])
   })
