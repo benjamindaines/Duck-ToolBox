@@ -17,8 +17,8 @@ test("loads a large command history in bounded pages without losing records", as
         original(command, options, callback)
         return
       }
-      const offset = Number(command.match(/'--offset' '(\\d+)'/)?.[1] ?? 0)
-      const limit = Number(command.match(/'--limit' '(\\d+)'/)?.[1] ?? 20)
+      const offset = Number(command.match(/'--offset' '(\d+)'/)?.[1] ?? 0)
+      const limit = Number(command.match(/'--limit' '(\d+)'/)?.[1] ?? 20)
       if (limit === 20) (scope.__duckLogOffsets as number[]).push(offset)
       const entries = Array.from({ length: 45 }, (_, index) => ({
         ts: 45 - index,
