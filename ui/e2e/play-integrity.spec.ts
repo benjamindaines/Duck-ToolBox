@@ -154,79 +154,65 @@ test("disabling cancels generation and the independent power switch can enable a
   await expect(page.getByRole("switch", { name: "Enable the engine", exact: true })).toBeChecked()
 })
 
-test("keeps engine enable controls on status while retaining emergency stop elsewhere", async ({
-  page,
-  open,
-}) => {
+test("only status exposes engine enable controls", async ({ page, open }) => {
   await open("/play-integrity")
-  await expect(page.getByRole("switch", { name: "Enable the engine", exact: true })).toBeVisible()
-  for (const tab of ["Configuration", "Fingerprints", "Compatibility", "Diagnostics", "Licenses"]) {
+  const power = page.getByRole("switch", { name: "Enable the engine" })
+  const stop = page.getByRole("button", { name: "Disable PIF now" })
+  const tabs = ["Configuration", "Fingerprints", "Compatibility", "Diagnostics", "Licenses"]
+  await expect(power).toBeVisible()
+  for (const tab of tabs) {
     await page.getByRole("link", { name: tab, exact: true }).click()
-    await expect(
-      page.getByRole("switch", { name: "Enable the engine", exact: true }),
-    ).toHaveCount(0)
-    await expect(page.getByRole("button", { name: "Disable PIF now", exact: true })).toBeVisible()
+    await expect(power).toHaveCount(0)
+    await expect(stop).toBeVisible()
   }
   await page.getByRole("link", { name: "Status", exact: true }).click()
-  await expect(page.getByRole("switch", { name: "Enable the engine", exact: true })).toBeVisible()
+  await expect(power).toBeVisible()
 })
 
-test("returns home from every Play Integrity tab, including direct links", async ({
-  page,
-  open,
-}) => {
-  for (const route of [
+test("Play Integrity back navigates home from every tab", async ({ page, open }) => {
+  const paths = [
     "/play-integrity",
     "/play-integrity/config",
     "/play-integrity/generate",
     "/play-integrity/compatibility",
     "/play-integrity/diagnostics",
     "/play-integrity/license",
-  ]) {
-    await open(route)
-    await page.getByRole("button", { name: "Back", exact: true }).click()
+  ]
+  for (const path of paths) {
+    await open(path)
+    await page.getByRole("button", { name: "Back" }).click()
     await expect(page).toHaveURL(/#\/$/)
   }
 })
 
-test("scopes the pressed tab state layer instead of overlaying the viewport", async ({
-  page,
-  open,
-}) => {
+test("tab pressed overlay stays within its link bounds", async ({ page, open }) => {
   await open("/play-integrity")
-  for (const tab of [
-    "Status",
-    "Configuration",
-    "Fingerprints",
-    "Compatibility",
-    "Diagnostics",
-    "Licenses",
-  ]) {
-    const geometry = await page
-      .getByRole("link", { name: tab, exact: true })
-      .evaluate((element) => {
-        const layer = getComputedStyle(element, "::before")
-        const trigger = element.getBoundingClientRect()
-        return {
-          position: getComputedStyle(element).position,
-          layerWidth: parseFloat(layer.width),
-          layerHeight: parseFloat(layer.height),
-          triggerWidth: trigger.width,
-          triggerHeight: trigger.height,
-        }
-      })
-    expect(geometry.position).toBe("relative")
-    expect(geometry.layerWidth).toBeGreaterThan(0)
-    expect(geometry.layerWidth).toBeLessThanOrEqual(geometry.triggerWidth + 1)
-    expect(geometry.layerHeight).toBeLessThanOrEqual(geometry.triggerHeight + 1)
+  const nav = page.getByRole("navigation", { name: "Play Integrity" })
+  for (const link of await nav.getByRole("link").all()) {
+    const bounds = await link.evaluate((element) => {
+      const layer = getComputedStyle(element, "::before")
+      const rect = element.getBoundingClientRect()
+      return {
+        position: getComputedStyle(element).position,
+        width: parseFloat(layer.width),
+        height: parseFloat(layer.height),
+        maxWidth: rect.width,
+        maxHeight: rect.height,
+      }
+    })
+    expect(bounds.position).toBe("relative")
+    expect(bounds.width).toBeGreaterThan(0)
+    expect(bounds.width).toBeLessThanOrEqual(bounds.maxWidth + 1)
+    expect(bounds.height).toBeLessThanOrEqual(bounds.maxHeight + 1)
   }
 })
 
-test("preserves an uncommitted configuration draft across tab changes", async ({ page, open }) => {
+test("retains uncommitted edits during tab changes", async ({ page, open }) => {
   await open("/play-integrity/config")
   const draft = "MODEL=DraftOnly\nEXTRA=keep"
-  await page.getByLabel("Configuration", { exact: true }).fill(draft)
+  const content = page.getByLabel("Configuration", { exact: true })
+  await content.fill(draft)
   await page.getByRole("link", { name: "Diagnostics", exact: true }).click()
   await page.getByRole("link", { name: "Configuration", exact: true }).click()
-  await expect(page.getByLabel("Configuration", { exact: true })).toHaveValue(draft)
+  await expect(content).toHaveValue(draft)
 })
