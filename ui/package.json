@@ -14,7 +14,7 @@
     "typecheck": "vue-tsc -b",
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write src e2e e2e-device scripts",
-    "format:check": "prettier --check src e2e e2e-device scripts || (prettier src/features/system/components/ActivityList.vue | diff -u src/features/system/components/ActivityList.vue -; exit 1)",
+    "format:check": "prettier --check src e2e e2e-device scripts",
     "test": "vitest run",
     "test:contract": "vitest run api.contract",
     "test:e2e": "playwright test",
