@@ -20,7 +20,7 @@ const manifest = {
 }
 
 describe("availability", () => {
-  it("matches the backend feature and contract", () => {
+  it("matches the backend feature", () => {
     expect(availability(feature(), manifest)).toBe("available")
   })
 
@@ -28,8 +28,8 @@ describe("availability", () => {
     expect(availability(feature({ id: "rkp" }), manifest)).toBe("missing")
   })
 
-  it("disables a UI written against another contract", () => {
-    expect(availability(feature({ contract: 2 }), manifest)).toBe("outdated")
+  it("keeps a UI written against another contract enabled", () => {
+    expect(availability(feature({ contract: 2 }), manifest)).toBe("available")
   })
 
   it("never blocks UI-only features", () => {

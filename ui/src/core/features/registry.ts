@@ -31,11 +31,12 @@ export function contributions<K extends ContributionKey>(key: K): Contribution<K
   )
 }
 
-export type Availability = "available" | "missing" | "outdated" | "unknown"
+export type Availability = "available" | "missing" | "unknown"
 
 /**
- * Whether the installed backend can serve `feature`. A missing feature or a different
- * contract version disables the tool instead of letting it misread data.
+ * Whether the installed backend can serve `feature`. A feature absent from the binary is
+ * reported as missing. A differing contract version is deliberately not treated as a
+ * fault: the tool stays enabled, because the in-app update path no longer exists.
  */
 export function availability(
   feature: FeatureDefinition,
@@ -46,5 +47,5 @@ export function availability(
   if (!manifest) return "unknown"
   const entry = manifest.features.find((candidate) => candidate.id === backend)
   if (!entry) return "missing"
-  return entry.contract === (feature.contract ?? 1) ? "available" : "outdated"
+  return "available"
 }

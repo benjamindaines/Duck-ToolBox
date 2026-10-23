@@ -44,7 +44,7 @@ export interface FeatureDefinition {
   namespace: string
   /** Backend feature this UI drives; `null` for UI-only features. Defaults to `id`. */
   backend?: string | null
-  /** Backend contract version this UI was written against. Defaults to 1. */
+  /** Backend contract version this UI was written against. Informational; not enforced. */
   contract?: number
   icon: Component
   /** Sort order on the home page. */

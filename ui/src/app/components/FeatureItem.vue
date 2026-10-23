@@ -17,16 +17,8 @@ const props = defineProps<{ feature: FeatureDefinition; availability: Availabili
 const emit = defineEmits<{ open: [feature: FeatureDefinition] }>()
 const { t } = useI18n()
 
-const blocked = computed(
-  () => props.availability === "missing" || props.availability === "outdated",
-)
-const badge = computed(() =>
-  props.availability === "missing"
-    ? t("core.home.missing")
-    : props.availability === "outdated"
-      ? t("core.home.outdated")
-      : null,
-)
+const blocked = computed(() => props.availability === "missing")
+const badge = computed(() => (props.availability === "missing" ? t("core.home.missing") : null))
 </script>
 
 <template>
