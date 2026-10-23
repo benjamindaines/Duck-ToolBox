@@ -37,11 +37,7 @@ const entries = computed(() => log.data.value?.pages.flatMap((page) => page.entr
       {{ t("activity.empty") }}
     </p>
     <div v-else class="-mx-2 flex flex-col">
-      <Item
-        v-for="(entry, index) in entries"
-        :key="`${entry.ts}-${index}`"
-        size="sm"
-      >
+      <Item v-for="(entry, index) in entries" :key="`${entry.ts}-${index}`" size="sm">
         <ItemMedia variant="icon" :class="entry.ok ? '' : 'bg-destructive/10 text-destructive'">
           <CircleCheck v-if="entry.ok" />
           <CircleX v-else />
