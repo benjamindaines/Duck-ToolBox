@@ -26,11 +26,11 @@ pub struct LogPage {
 }
 
 fn bound_message(message: &mut Option<String>) {
-    if let Some(message) = message {
-        if let Some((byte, _)) = message.char_indices().nth(MAX_LOG_MESSAGE_CHARS) {
-            message.truncate(byte);
-            message.push('…');
-        }
+    if let Some(message) = message
+        && let Some((byte, _)) = message.char_indices().nth(MAX_LOG_MESSAGE_CHARS)
+    {
+        message.truncate(byte);
+        message.push('…');
     }
 }
 
