@@ -64,7 +64,9 @@ const entries = computed(() => log.data.value?.pages.flatMap((page) => page.entr
       class="flex flex-col items-center gap-2 py-3"
     >
       <p class="text-destructive text-sm">{{ String(log.error.value) }}</p>
-      <Button variant="outline" @click="log.fetchNextPage()">{{ t("activity.retryMore") }}</Button>
+      <Button variant="outline" @click="log.fetchNextPage()">
+        {{ t("activity.retryMore") }}
+      </Button>
     </div>
     <Button
       v-else-if="paginated && log.hasNextPage.value"
