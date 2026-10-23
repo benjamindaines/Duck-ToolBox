@@ -189,6 +189,8 @@ fn run(ctx: &Context, command: Command) -> Result<Value> {
             }
             let request = input(args)?;
             let candidate = request.get("engine").context("missing engine preview")?;
+            let stop_revision =
+                duck_play_integrity::request(ctx, "power", &json!({}))?["stop_revision"].clone();
             let engine_backup = token(&duck_play_integrity::request(ctx, "prepare", candidate)?)?;
             let patch = request.get("patch").filter(|v| !v.is_null());
             let patch_backup = patch
@@ -214,10 +216,20 @@ fn run(ctx: &Context, command: Command) -> Result<Value> {
                     bail!("engine backup changed during apply");
                 }
                 let mut restart = engine["restart_required"] == true;
+                if duck_play_integrity::request(ctx, "power", &json!({}))?["stop_revision"]
+                    != stop_revision
+                {
+                    bail!("engine was stopped during configuration application");
+                }
                 if let Some(backup) = &journal.patch_backup {
                     journal.patch_started = true;
                     store.save(&journal)?;
                     restart |= patch_commit(ctx, backup)?["restart_required"] == true;
+                }
+                if duck_play_integrity::request(ctx, "power", &json!({}))?["stop_revision"]
+                    != stop_revision
+                {
+                    bail!("engine was stopped during configuration application");
                 }
                 journal.restart_required = restart;
                 journal.phase = "completed".into();

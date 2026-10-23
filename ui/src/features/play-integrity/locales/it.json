@@ -101,5 +101,12 @@
   "recover": "Conferma ripristino",
   "recovered": "Configurazioni precedenti ripristinate.",
   "replaceHelp": "Sono ammesse solo singole voci in app, priv-app o overlay di system, product, system_ext, vendor, odm o oem. Jolly solo nei nomi delle app; radici, percorsi superiori e overlay/config rifiutati.",
-  "activationHelp": "La modalità completa modifica l’ambiente globale dopo aver applicato una configurazione non vuota. Salvare esplicitamente scripts-only abilita gli script di compatibilità senza impronta."
+  "activationHelp": "La modalità completa modifica l’ambiente globale dopo aver applicato una configurazione non vuota. Salvare esplicitamente scripts-only abilita gli script di compatibilità senza impronta.",
+  "disableNow": "Disattiva PIF ora",
+  "retryCleanup": "Riprova pulizia",
+  "powerHelp": "Ferma le future iniezioni e gli script senza dipendere dalla verifica della configurazione. Gli hook esistenti richiedono il riavvio dei processi PI; montaggi e proprietà globali richiedono il riavvio del dispositivo.",
+  "disabledHelp": "PIF è disattivato. Configurazione e altri strumenti sono conservati. Riavvia i processi PI e il dispositivo per rimuovere gli effetti esistenti.",
+  "cleanupPending": "Il blocco è attivo, ma la pulizia è incompleta. Le modifiche esterne sono conservate. Controlla i dettagli e riprova dopo aver risolto.",
+  "denylistRestoreHelp": "La disattivazione ripristina solo modifiche DenyList registrate e non alterate esternamente. Magisk può terminare i processi interessati. Le vecchie modifiche non registrate non vengono dedotte.",
+  "persistRestoreHelp": "Le proprietà persistenti seguono il ripristino originale: vengono riscritti i valori iniziali registrati, che possono sovrascrivere modifiche successive."
 }

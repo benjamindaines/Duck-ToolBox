@@ -2,11 +2,37 @@
 // Independent native parser and companion protocol verification.
 #include "transport.hpp"
 #include <cassert>
+#include <filesystem>
+#include <fstream>
 #include <thread>
 #include <sys/socket.h>
 #include <unistd.h>
 static void closePair(int (&fd)[2]) { close(fd[0]); close(fd[1]); }
+#ifdef PIF_TEST_ROOT
+static void gateTests() {
+    namespace fs=std::filesystem;
+    const auto root=fs::path(PIF_TEST_ROOT);
+    fs::create_directories(root / "module/play-integrity"); fs::create_directories(root / "data");
+    const auto write=[&](const char *path,const char *value){std::ofstream(root / path)<<value;};
+    write("module/play-integrity/classes.dex","dex"); write("data/custom.pif.json","{\"MODEL\":\"A\"}");
+    const auto received=[](){int fd[2];assert(socketpair(AF_UNIX,SOCK_STREAM,0,fd)==0);std::thread server([&]{pif::companion(fd[1]);close(fd[1]);});std::vector<char> dex;std::string config;const bool result=pif::receive(fd[0],dex,config);close(fd[0]);server.join();return result;};
+    assert(received());
+    write("data/options.json","{\"enabled\":false}"); assert(!received());
+    write("data/options.json","{\"enabled\":true}"); assert(received());
+    write("data/disabled","first-stop"); assert(!received());
+    write("data/enabled-token","first-stop"); assert(received());
+    write("data/disabled","later-stop"); assert(!received());
+    write("data/enabled-token","later-stop"); assert(received());
+    write("data/options.json","{broken"); assert(!received());
+    write("data/options.json","{\"mode\":\"scripts-only\"}"); assert(!received());
+    write("data/options.json","{}"); write("module/disable",""); assert(!received());
+    fs::remove(root / "module/disable"); write("data/custom.pif.json",""); assert(!received());
+}
+#endif
 int main() {
+#ifdef PIF_TEST_ROOT
+    gateTests();
+#endif
     auto parsed = pif::parse("MODEL=with \"quotes\"\n*.security_patch=2026-10-05");
     assert(parsed["MODEL"] == "with \"quotes\"");
     assert(parsed["*.security_patch"] == "2026-10-05");

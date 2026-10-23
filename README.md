@@ -12,7 +12,8 @@ changed, removed or added on its own.
   with configuration previews, migration, fingerprint generation, compatibility settings and
   diagnostics in the WebUI. It is enabled by default; injection requires Zygisk and a saved
   nonempty configuration. Full-mode global scripts also wait for configuration; explicitly
-  selected scripts-only mode can run without a fingerprint. The management code remains MIT; see [licensing boundaries](THIRD_PARTY_NOTICES.md).
+  selected scripts-only mode can run without a fingerprint. A separate stop control works
+  during tasks, invalid configuration and pending recovery; configuration is retained. The management code remains MIT; see [licensing boundaries](THIRD_PARTY_NOTICES.md).
 
 - **Tricky Store manager**: a complete port of KOWX712's
   [Tricky Addon: Update Target List](https://github.com/KOWX712/Tricky-Addon-Update-Target-List),
@@ -319,6 +320,26 @@ Nightly packages use the repository's commit-count version code and `canary` suf
 The engine's source archive, dependency notices and licensing boundaries are checked
 before either package is created. See [the rule review](components/play-integrity/RULES.md)
 for the source references and required device validation.
+
+The power control uses `duckd play-integrity disable` (standalone:
+`pif-engine request disable`) and `play-integrity power` for status. Disable
+publishes a private stop token before configuration parsing or locking, cancels
+fingerprint generation, and attempts compatibility cleanup. The WebUI keeps
+this control outside the configuration form and its busy state. New enable
+requests acknowledge the current token, so an older request cannot override
+a later stop. Importing, generating or applying a configuration does not enable
+PIF. Recorded DenyList and SELinux-permission changes are restored only when
+the current state still matches the engine's expected state. External edits are
+preserved and incomplete cleanup can be retried. Magisk may terminate processes
+when DenyList entries are restored under enforcement. Historical changes without
+a record are never guessed. Persistent compatibility properties retain upstream
+restoration: recorded original values may overwrite later edits, as disclosed in
+the power control.
+
+Already injected hooks require restarting PI processes; active mount namespaces,
+ROM overlays and global properties require a device reboot. Disabling PIF restores
+the original toolbox property-handler path, whose own switch and boot-hash behavior
+remain independent. This control does not disable the keystore tools.
 
 Configuration and optional keystore patch updates use the backend's
 `integrity-transaction` contract (version 1). Backups and rendered candidates are

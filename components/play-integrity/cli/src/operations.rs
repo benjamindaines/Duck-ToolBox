@@ -36,6 +36,9 @@ pub fn options(engine: &Engine) -> Result<Value> {
     if result["mode"] != "full" && result["mode"] != "scripts-only" {
         bail!("options.json: invalid mode");
     }
+    if crate::power::disabled(engine) {
+        result["enabled"] = json!(false);
+    }
     Ok(result)
 }
 pub fn conflicts(engine: &Engine) -> Vec<String> {
@@ -52,6 +55,8 @@ pub fn conflicts(engine: &Engine) -> Vec<String> {
 }
 pub fn run(engine: &Engine, operation: &str, input: Value) -> Result<Value> {
     match operation {
+        "power" => crate::shutdown::status(engine),
+        "disable" => crate::shutdown::stop(engine),
         "status" => status(engine),
         "config" => config::current(engine),
         "preview" => config::preview(engine, &input),
@@ -121,9 +126,15 @@ fn compatibility(engine: &Engine) -> Result<Value> {
     )
 }
 pub fn owns_properties(engine: &Engine) -> Result<bool> {
+    if crate::power::disabled(engine) {
+        return Ok(false);
+    }
     Ok(options(engine)?["enabled"] == true && conflicts(engine).is_empty())
 }
 pub fn active(engine: &Engine) -> Result<bool> {
+    if crate::power::disabled(engine) {
+        return Ok(false);
+    }
     let opts = options(engine)?;
     Ok(opts["enabled"] == true
         && conflicts(engine).is_empty()
@@ -239,7 +250,22 @@ fn restore(engine: &Engine, input: &Value) -> Result<Value> {
     Ok(json!({"config":config::current(engine)?,"restart_required":true}))
 }
 fn save_options(engine: &Engine, input: &Value) -> Result<Value> {
+    if input["enabled"] == false {
+        let result = crate::shutdown::stop(engine)?;
+        let mut opts = options(engine).unwrap_or_else(|_| json!({"enabled":false,"mode":"full","skipdelprop":false,"skippersistprop":false,"skipmatchdevice":false}));
+        opts["enabled"] = json!(false);
+        return Ok(json!({"options":opts,"reboot_required":true,"shutdown":result}));
+    }
+    let stop_revision = files::read(&engine.data.join("disabled"))?;
     let _lock = files::Lock::acquire(&engine.data)?;
+    if input["enabled"] == true
+        && (files::read(&engine.data.join("disabled"))? != stop_revision
+            || input
+                .get("expected_stop_revision")
+                .is_some_and(|r| r != &files::hash(stop_revision.as_bytes())))
+    {
+        bail!("shutdown changed; refresh power state before enabling");
+    }
     let mut opts = options(engine)?;
     for key in [
         "enabled",
@@ -270,7 +296,14 @@ fn save_options(engine: &Engine, input: &Value) -> Result<Value> {
             list.as_bytes(),
         )?;
     }
+    if input["enabled"] == true {
+        opts["enabled"] = json!(true);
+    }
     files::write_json(&engine.data.join("options.json"), &opts)?;
+    if input["enabled"] == true {
+        files::atomic(&engine.data.join("enabled-token"), stop_revision.as_bytes())?;
+    }
+    opts["enabled"] = json!(!crate::power::disabled(engine));
     Ok(json!({"options":opts,"reboot_required":true}))
 }
 fn restart(engine: &Engine) -> Result<Value> {
@@ -288,6 +321,29 @@ pub fn stage(engine: &Engine, phase: &str) -> Result<Value> {
     if !["early", "late", "setup", "uninstall"].contains(&phase) {
         bail!("invalid lifecycle phase");
     }
+    if phase == "uninstall" {
+        let stopped = crate::shutdown::stop(engine)?;
+        if stopped["cleanup_pending"] == true {
+            bail!(
+                "cleanup incomplete; engine data retained: {}",
+                engine.data.display()
+            );
+        }
+        let _lock = files::Lock::acquire(&engine.data)?;
+        return Ok(json!({"stage":phase,"output":crate::stages::run(engine,"uninstall","full")?}));
+    }
+    if crate::power::disabled(engine) {
+        if phase != "early" {
+            return Ok(json!({"skipped":true}));
+        }
+        let result = crate::shutdown::stop(engine)?;
+        files::write_json(
+            &engine.data.join("boot.json"),
+            &json!({"boot_id":files::read(&engine.device("/proc/sys/kernel/random/boot_id"))?.trim(),"options":options(engine).unwrap_or_else(|_|json!({"enabled":false})),"active":false,"compatibility":compatibility(engine).unwrap_or(Value::Null),"zygisk_enabled":false}),
+        )?;
+        return Ok(json!({"stage":phase,"shutdown":result}));
+    }
+    let _lock = files::Lock::acquire(&engine.data)?;
     let opts = options(engine)?;
     let active = active(engine)?;
     let script_phase = if phase == "early" && !active {
@@ -300,19 +356,6 @@ pub fn stage(engine: &Engine, phase: &str) -> Result<Value> {
     }
     if active && opts["mode"] == "full" && ["setup", "early"].contains(&phase) {
         crate::paths::validate_list(&replacement_list(engine)?)?;
-    }
-    if phase == "uninstall" {
-        let job = files::json_file(&engine.data.join("active-job.json"))?;
-        if let Some(id) = job["id"].as_str() {
-            tasks::cancel(engine, id)?;
-            let end = std::time::Instant::now() + std::time::Duration::from_secs(5);
-            while tasks::status(engine, id)?["state"] == "running" {
-                if std::time::Instant::now() >= end {
-                    bail!("generator did not stop; engine data retained");
-                }
-                std::thread::sleep(std::time::Duration::from_millis(100));
-            }
-        }
     }
     files::private_dir(&engine.data)?;
     for (key, file) in [
@@ -327,29 +370,17 @@ pub fn stage(engine: &Engine, phase: &str) -> Result<Value> {
             fs::remove_file(path)?;
         }
     }
-    let ksu = engine.device("/data/adb/ksud").exists() || engine.device("/data/adb/ksu").exists();
-    let apatch =
-        !ksu && (engine.device("/data/adb/apd").exists() || engine.device("/data/adb/ap").exists());
-    let output = engine
-        .shell()
-        .env("KSU", if ksu { "true" } else { "false" })
-        .env("APATCH", if apatch { "true" } else { "false" })
-        .arg(engine.module.join("scripts/stage.sh"))
-        .arg(script_phase)
-        .env("PIF_ENGINE_DATA", &engine.data)
-        .env("PIF_ENGINE_SCRIPTS", engine.module.join("scripts"))
-        .env(
-            "PIF_ENGINE_ROOT",
-            engine.module.parent().unwrap_or(&engine.module),
-        )
-        .env("PIF_ENGINE_MODE", opts["mode"].as_str().unwrap_or("full"))
-        .stdin(std::process::Stdio::null())
-        .output()?;
-    if !output.status.success() {
-        bail!(
-            "stage {phase} failed: {}",
-            String::from_utf8_lossy(&output.stderr)
-        );
+    let mode = opts["mode"].as_str().unwrap_or("full");
+    if phase == "early" && active {
+        crate::denylist::manage(engine, mode)?;
+    }
+    if script_phase == "cleanup" || phase == "uninstall" {
+        crate::denylist::restore(engine)?;
+        crate::selinux::restore(engine)?;
+    }
+    let output = crate::stages::run(engine, script_phase, mode)?;
+    if phase == "late" && active && !engine.device("/data/adb/disable_prop_handler").exists() {
+        crate::selinux::apply(engine)?;
     }
     if phase == "early" {
         files::write_json(
@@ -357,7 +388,7 @@ pub fn stage(engine: &Engine, phase: &str) -> Result<Value> {
             &json!({"boot_id":files::read(&engine.device("/proc/sys/kernel/random/boot_id"))?.trim(),"options":opts,"active":active,"compatibility":compatibility(engine)?,"zygisk_enabled":std::env::var("ZYGISK_ENABLED").as_deref()==Ok("1")}),
         )?;
     }
-    Ok(json!({"stage":phase,"output":String::from_utf8_lossy(&output.stdout)}))
+    Ok(json!({"stage":phase,"output":output}))
 }
 
 #[cfg(test)]

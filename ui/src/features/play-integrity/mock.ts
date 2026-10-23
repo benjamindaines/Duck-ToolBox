@@ -8,6 +8,7 @@ let revision = "initial"
 let previous = ""
 let count = 0
 let cancelled = false
+let stopRevision = "initial"
 let interrupted = new URLSearchParams(location.search).get("interrupted-transaction") === "1"
 const options: Options = {
   enabled: true,
@@ -53,6 +54,27 @@ function preview(value: string) {
 const mock: MockModule = {
   feature: { id: "play-integrity", contract: 1 },
   handlers: {
+    "play-integrity.power": () => ({
+      enabled: options.enabled,
+      disabled_by_marker: !options.enabled,
+      stop_revision: stopRevision,
+      cleanup_pending: false,
+      issues: [],
+    }),
+    "play-integrity.disable": () => {
+      options.enabled = false
+      cancelled = true
+      stopRevision = String(Date.now())
+      return {
+        enabled: false,
+        disabled_by_marker: true,
+        stop_revision: stopRevision,
+        cleanup_pending: false,
+        issues: [],
+        reboot_required: true,
+        process_restart_required: true,
+      }
+    },
     "integrity-transaction.status": () => ({
       pending: interrupted,
       journal_path: "/data/adb/duck-toolbox/var/integrity-transaction/journal.json",
@@ -73,22 +95,26 @@ const mock: MockModule = {
       }
       return result
     },
-    "play-integrity.status": () => ({
-      upstream_revision: "23ec56c2440c4fd1a5e893a23ef7861d6366a828",
-      options: { ...options },
-      has_config: true,
-      zygisk_detected: true,
-      conflicts: [],
-      reboot_required: false,
-      state: options.enabled
-        ? options.mode === "scripts-only"
-          ? "scripts-only"
-          : "configured"
-        : "disabled",
-      data_dir: "/data/adb/play-integrity",
-      verdict_verified: false,
-      app_replace_list: "# ROM conflict paths\n",
-    }),
+    "play-integrity.status": () => {
+      if (new URLSearchParams(location.search).has("invalid-pif"))
+        throw new MockFailure("engine_error", "Invalid configuration fixture")
+      return {
+        upstream_revision: "23ec56c2440c4fd1a5e893a23ef7861d6366a828",
+        options: { ...options },
+        has_config: true,
+        zygisk_detected: true,
+        conflicts: [],
+        reboot_required: false,
+        state: options.enabled
+          ? options.mode === "scripts-only"
+            ? "scripts-only"
+            : "configured"
+          : "disabled",
+        data_dir: "/data/adb/play-integrity",
+        verdict_verified: false,
+        app_replace_list: "# ROM conflict paths\n",
+      }
+    },
     "play-integrity.config": config,
     "play-integrity.preview": (_args, _flags, input) =>
       preview(String((input as { content: string }).content)),

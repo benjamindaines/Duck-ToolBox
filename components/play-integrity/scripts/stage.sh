@@ -18,10 +18,12 @@ for bin in /data/adb/ksu/bin /data/adb/ap/bin /data/adb/magisk; do
 done
 
 . "$PIF_ENGINE_SCRIPTS/path_rules.sh"
+. "$PIF_ENGINE_SCRIPTS/power.sh"
 
 cleanup_overlays() {
   manifest="$PIF_ENGINE_DATA/overlay-paths.txt"
   [ -f "$manifest" ] || return 0
+  failed=false
   while IFS= read -r relative; do
     case "$relative" in system/*) ;; *) continue ;; esac
     device_path=/${relative#system/}
@@ -33,15 +35,25 @@ cleanup_overlays() {
     target="$PIF_ENGINE_ROOT/$relative"
     if [ -d "$target" ]; then
       rm -f "$target/.replace"
-      rmdir "$target" 2>/dev/null || true
+      if ! rmdir "$target" 2>/dev/null; then
+        setfattr -x trusted.overlay.opaque "$target" 2>/dev/null || true
+        printf 'Retained nonempty ROM overlay: %s\n' "$target" >&2
+        failed=true
+      fi
     else
       rm -f "$target"
     fi
   done < "$manifest"
+  $failed && return 1
   rm -f "$manifest"
 }
 
-case "$1:$PIF_ENGINE_MODE" in
+phase=$1
+case "$phase" in
+  setup|early|late) pif_running || phase=cleanup ;;
+esac
+
+case "$phase:$PIF_ENGINE_MODE" in
   setup:full|early:full)
     list="$PIF_ENGINE_SCRIPTS/app_replace_list.txt"
     [ ! -f "$PIF_ENGINE_DATA/custom.app_replace_list.txt" ] || list="$PIF_ENGINE_DATA/custom.app_replace_list.txt"
@@ -49,7 +61,7 @@ case "$1:$PIF_ENGINE_MODE" in
     ;;
 esac
 
-case "$1" in
+case "$phase" in
   cleanup)
     cleanup_overlays
     if [ -f "$PIF_ENGINE_DATA/uninstall.sh" ]; then sh -e "$PIF_ENGINE_DATA/uninstall.sh" && rm -f "$PIF_ENGINE_DATA/uninstall.sh"; fi

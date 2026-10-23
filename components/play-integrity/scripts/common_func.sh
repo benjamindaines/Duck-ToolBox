@@ -2,11 +2,15 @@
 # Source: https://github.com/osm0sis/PlayIntegrityFork/tree/23ec56c2440c4fd1a5e893a23ef7861d6366a828
 # SPDX-License-Identifier: GPL-3.0-only
 # Modified 2026-10-24: independent engine packaging, bounded configuration and runtime operations.
+# A separate stop gate remains usable even when configuration files are invalid.
+. "$PIF_ENGINE_SCRIPTS/power.sh"
+
 SKIPDELPROP=false
 [ -f "$PIF_ENGINE_DATA/skipdelprop" ] && SKIPDELPROP=true
 
 # delprop_if_exist <prop name>
 delprop_if_exist() {
+    pif_running || return 0
     local NAME="$1"
 
     if [ -n "$(resetprop "$NAME")" ]; then
@@ -23,6 +27,7 @@ shell_quote() { printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"; }
 
 # persistprop <prop name> <new value>
 persistprop() {
+    pif_running || return 0
     local NAME="$1"
     local NEWVALUE="$2"
     local CURVALUE="$(resetprop "$NAME")"
@@ -44,6 +49,7 @@ RESETPROP="resetprop -n"
 
 # resetprop_hexpatch [-f|--force] <prop name> <new value>
 resetprop_hexpatch() {
+    pif_running || return 0
     case "$1" in
         -f|--force) local FORCE=1; shift;;
     esac
@@ -77,6 +83,7 @@ resetprop_hexpatch() {
 
 # resetprop_if_diff <prop name> <expected value>
 resetprop_if_diff() {
+    pif_running || return 0
     local NAME="$1"
     local EXPECTED="$2"
     local CURRENT="$(resetprop "$NAME")"
@@ -86,6 +93,7 @@ resetprop_if_diff() {
 
 # resetprop_if_match <prop name> <value match string> <new value>
 resetprop_if_match() {
+    pif_running || return 0
     local NAME="$1"
     local CONTAINS="$2"
     local VALUE="$3"

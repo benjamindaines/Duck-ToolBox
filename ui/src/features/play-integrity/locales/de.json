@@ -101,5 +101,12 @@
   "recover": "Wiederherstellung bestätigen",
   "recovered": "Vorherige Konfigurationen wiederhergestellt.",
   "replaceHelp": "Nur einzelne Einträge unter app, priv-app oder overlay in system, product, system_ext, vendor, odm oder oem sind erlaubt. Platzhalter nur in App-Namen; Wurzeln, Elternpfade und overlay/config sind gesperrt.",
-  "activationHelp": "Der vollständige Modus ändert die globale Umgebung erst nach Anwendung einer nicht leeren Konfiguration. Explizit gespeicherter scripts-only-Modus führt Kompatibilitätsskripte ohne Fingerabdruck aus."
+  "activationHelp": "Der vollständige Modus ändert die globale Umgebung erst nach Anwendung einer nicht leeren Konfiguration. Explizit gespeicherter scripts-only-Modus führt Kompatibilitätsskripte ohne Fingerabdruck aus.",
+  "disableNow": "PIF jetzt deaktivieren",
+  "retryCleanup": "Bereinigung wiederholen",
+  "powerHelp": "Stoppt künftige Injektionen und Kompatibilitätsskripte unabhängig von der Konfigurationsprüfung. Bestehende Hooks erfordern einen PI-Prozessneustart; Mounts und globale Eigenschaften einen Geräteneustart.",
+  "disabledHelp": "PIF ist deaktiviert. Konfiguration und andere Werkzeuge bleiben erhalten. Starte PI-Prozesse und Gerät neu, um bestehende Effekte zu entfernen.",
+  "cleanupPending": "Die Sperre ist aktiv, aber die Bereinigung ist unvollständig. Externe Änderungen bleiben erhalten. Prüfe die Details und versuche es nach der Behebung erneut.",
+  "denylistRestoreHelp": "Beim Deaktivieren werden nur protokollierte, extern unveränderte DenyList-Eingriffe rückgängig gemacht. Magisk kann betroffene Prozesse beenden. Ältere, nicht protokollierte Änderungen werden nicht erraten.",
+  "persistRestoreHelp": "Persistente Kompatibilitätseigenschaften werden wie bei Upstream auf die gespeicherten ursprünglichen Werte zurückgesetzt. Spätere Änderungen können überschrieben werden."
 }

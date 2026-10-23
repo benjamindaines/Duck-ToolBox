@@ -7,6 +7,7 @@
 #include <cstdio>
 #include <fstream>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #ifndef PIF_MODULE_DIR
 #define PIF_MODULE_DIR "/data/adb/modules/duck-toolbox/play-integrity"
@@ -41,6 +42,14 @@ static std::vector<char> file(const std::string &path, size_t limit) {
     return bytes;
 }
 static bool active() {
+    if (access(PIF_DATA_DIR "/disabled", F_OK) == 0) {
+        struct stat metadata{};
+        if (stat(PIF_DATA_DIR "/disabled", &metadata) != 0 || metadata.st_size > 128
+            || stat(PIF_DATA_DIR "/enabled-token", &metadata) != 0 || metadata.st_size > 128
+            || file(PIF_DATA_DIR "/disabled",128) != file(PIF_DATA_DIR "/enabled-token",128)) return false;
+    }
+    if (access(PIF_MODULE_DIR "/../disable", F_OK) == 0
+        || access(PIF_MODULE_DIR "/../remove", F_OK) == 0) return false;
     for (const auto *id : {"playintegrityfix", "safetynet-fix"}) {
         auto path = std::string("/data/adb/modules/") + id;
         if (access((path + "/module.prop").c_str(), F_OK) == 0 && access((path + "/disable").c_str(), F_OK) != 0 && access((path + "/remove").c_str(), F_OK) != 0) return false;
@@ -64,6 +73,7 @@ void companion(int fd) {
     timeout(fd);
     auto dex = active() ? file(PIF_MODULE_DIR "/classes.dex", max_dex) : std::vector<char>{};
     auto config = dex.empty() ? std::vector<char>{} : file(PIF_DATA_DIR "/custom.pif.json", max_config);
+    if (!active()) { dex.clear(); config.clear(); }
     uint32_t header[]{magic, static_cast<uint32_t>(dex.size()), static_cast<uint32_t>(config.size())};
     if (!transfer(fd, header, sizeof(header), true)) return;
     if (!dex.empty() && !transfer(fd, dex.data(), dex.size(), true)) return;

@@ -101,5 +101,12 @@
   "recover": "Confirm recovery",
   "recovered": "Previous configurations restored.",
   "replaceHelp": "Only individual entries under app, priv-app or overlay in system, product, system_ext, vendor, odm or oem are allowed. Wildcards are limited to app names; roots, parent paths and overlay/config are rejected.",
-  "activationHelp": "Full mode changes the global environment only after a nonempty configuration is applied. Explicitly saving scripts-only mode enables compatibility scripts without a fingerprint."
+  "activationHelp": "Full mode changes the global environment only after a nonempty configuration is applied. Explicitly saving scripts-only mode enables compatibility scripts without a fingerprint.",
+  "disableNow": "Disable PIF now",
+  "retryCleanup": "Retry cleanup",
+  "powerHelp": "Stop future injection and compatibility scripts independently of configuration validation. Existing hooks need a PI process restart; mounted overlays and global properties need a device reboot.",
+  "disabledHelp": "PIF is disabled. Configuration and other toolbox features are retained. Restart PI processes and reboot to clear existing effects.",
+  "cleanupPending": "The stop gate is active, but some cleanup remains. External edits are preserved. Review the details and retry after resolving them.",
+  "denylistRestoreHelp": "On disable, restore only recorded DenyList changes that have not been edited externally. Magisk may terminate affected processes. Unrecorded older changes are not guessed.",
+  "persistRestoreHelp": "Persistent compatibility properties follow upstream restoration: recorded original values are written back and can overwrite later changes to those properties."
 }

@@ -101,5 +101,12 @@
   "recover": "復元を確認",
   "recovered": "元の設定を復元しました。",
   "replaceHelp": "system、product、system_ext、vendor、odm、oem の app、priv-app、overlay 内の個別項目のみ許可します。ワイルドカードはアプリ名のみ。ルート、親パス、overlay/config は拒否します。",
-  "activationHelp": "完全モードは空でない設定の適用後にグローバル環境を変更します。scripts-only を明示的に保存すると、指紋なしで互換スクリプトを実行します。"
+  "activationHelp": "完全モードは空でない設定の適用後にグローバル環境を変更します。scripts-only を明示的に保存すると、指紋なしで互換スクリプトを実行します。",
+  "disableNow": "PIF を今すぐ無効化",
+  "retryCleanup": "後処理を再試行",
+  "powerHelp": "設定の検証に関係なく、今後の注入と互換スクリプトを停止します。既存の hook は PI プロセス、マウント済みの遮蔽と全体属性は端末の再起動が必要です。",
+  "disabledHelp": "PIF は無効です。設定と他のツールは保持されます。既存の影響を消すには PI プロセスと端末を再起動してください。",
+  "cleanupPending": "停止は有効ですが、後処理が残っています。外部の変更は保持しました。詳細を確認し、解決後に再試行してください。",
+  "denylistRestoreHelp": "無効化時は記録済みで外部編集のない DenyList 変更だけを復元します。Magisk が関連プロセスを終了する場合があります。未記録の過去の変更は推測しません。",
+  "persistRestoreHelp": "永続的な互換プロパティは上流の方式で復元します。記録した元の値を書き戻すため、後からの変更を上書きする場合があります。"
 }

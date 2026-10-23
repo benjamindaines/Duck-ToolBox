@@ -25,6 +25,9 @@ pub fn start(engine: &Engine, input: &Value) -> Result<Value> {
         bail!("timeout_seconds must be 1..120");
     }
     let _lock = files::Lock::acquire(&engine.data)?;
+    if crate::power::disabled(engine) {
+        bail!("engine disabled; generation is stopped");
+    }
     let active = files::json_file(&engine.data.join("active-job.json"))?;
     if let Some(id) = active["id"].as_str()
         && status(engine, id)?["state"] == "running"
@@ -42,6 +45,11 @@ pub fn start(engine: &Engine, input: &Value) -> Result<Value> {
     files::write_json(
         &dir.join("state.json"),
         &json!({"id":id,"state":"running","pid":null,"created":SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs(),"result":null,"error":null}),
+    )?;
+    // Publish the cancellable job identity before starting its worker.
+    files::write_json(
+        &engine.data.join("active-job.json"),
+        &json!({"id":id,"pid":null}),
     )?;
     let mut command = Command::new(std::env::current_exe()?);
     command
@@ -123,12 +131,29 @@ pub fn cancel(engine: &Engine, id: &str) -> Result<Value> {
     }
     Ok(state)
 }
+pub fn cancel_active(engine: &Engine) -> Result<()> {
+    let active = files::json_file(&engine.data.join("active-job.json"))?;
+    if let Some(id) = active["id"].as_str() {
+        cancel(engine, id)?;
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while status(engine, id)?["state"] == "running" {
+            if Instant::now() >= deadline {
+                bail!("generator cancellation pending; stop gate remains active");
+            }
+            std::thread::sleep(Duration::from_millis(50));
+        }
+    }
+    Ok(())
+}
 pub fn work(engine: &Engine, id: &str) -> Result<Value> {
     let dir = task_dir(engine, id)?;
     let input = files::json_file(&dir.join("request.json"))?;
     let mut state = json!({"id":id,"state":"running","pid":std::process::id(),"process_token":process_token(std::process::id()),"result":null,"error":null});
     files::write_json(&dir.join("state.json"), &state)?;
     let result = (|| -> Result<Value> {
+        if crate::power::disabled(engine) || dir.join("cancel").exists() {
+            bail!("cancelled");
+        }
         for name in ["autopif4.sh", "migrate.sh"] {
             fs::copy(engine.module.join("scripts").join(name), dir.join(name))?;
         }
@@ -157,10 +182,16 @@ pub fn work(engine: &Engine, id: &str) -> Result<Value> {
         {
             cmd.arg("--match");
         }
+        if crate::power::disabled(engine) || dir.join("cancel").exists() {
+            bail!("cancelled");
+        }
         let mut child = cmd.spawn()?;
         let seconds = input["timeout_seconds"].as_u64().unwrap_or(120);
         let deadline = Instant::now() + Duration::from_secs(seconds);
         loop {
+            if crate::power::disabled(engine) {
+                files::atomic(&dir.join("cancel"), b"")?;
+            }
             if dir.join("cancel").exists() || Instant::now() >= deadline {
                 let _ = child.kill();
                 let _ = child.wait();
@@ -228,18 +259,23 @@ pub fn work(engine: &Engine, id: &str) -> Result<Value> {
         result["metadata"] = json!({"released":comment_value(&content,"Canary Released:"),"estimated_expiry":comment_value(&content,"Estimated Expiry:")});
         Ok(result)
     })();
-    match result {
-        Ok(value) => {
-            state["state"] = json!("completed");
-            state["result"] = value;
-        }
-        Err(error) => {
-            state["state"] = json!(if dir.join("cancel").exists() {
-                "cancelled"
-            } else {
-                "failed"
-            });
-            state["error"] = json!(format!("{error:#}"));
+    if crate::power::disabled(engine) || dir.join("cancel").exists() {
+        state["state"] = json!("cancelled");
+        state["error"] = json!("cancelled");
+    } else {
+        match result {
+            Ok(value) => {
+                state["state"] = json!("completed");
+                state["result"] = value;
+            }
+            Err(error) => {
+                state["state"] = json!(if dir.join("cancel").exists() {
+                    "cancelled"
+                } else {
+                    "failed"
+                });
+                state["error"] = json!(format!("{error:#}"));
+            }
         }
     }
     // Keep the terminal result and a bounded log; downloaded pages and build scratch

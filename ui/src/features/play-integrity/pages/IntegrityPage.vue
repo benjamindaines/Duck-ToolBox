@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch, useTemplateRef } from "vue"
-import { Save, RefreshCw, FileSliders, FileCode } from "@lucide/vue"
+import { RefreshCw, FileSliders, FileCode } from "@lucide/vue"
 import { useI18n } from "vue-i18n"
 import { RouterLink } from "vue-router"
 import { Button } from "@/components/ui/button"
@@ -21,6 +21,7 @@ import QueryState from "@/core/components/QueryState.vue"
 import SectionCard from "@/core/components/SectionCard.vue"
 import { useCopy } from "@/core/links"
 import { notifyError } from "@/core/notify"
+import EnginePower from "../components/EnginePower.vue"
 import RecoveryNotice from "../components/RecoveryNotice.vue"
 import ConfigFields from "../components/ConfigFields.vue"
 import { integrityApi } from "../api"
@@ -116,6 +117,7 @@ async function importFile(event: Event) {
         >{{ t(`nav.${tab}`) }}</RouterLink
       >
     </nav>
+    <EnginePower class="px-4 pt-4" />
     <fieldset :disabled="s.busy.value" class="flex min-w-0 flex-1 flex-col gap-6 p-4">
       <RecoveryNotice />
       <QueryState
@@ -141,16 +143,6 @@ async function importFile(event: Event) {
           <p v-if="data?.conflicts.length" class="text-destructive mt-2 text-sm">
             {{ data.conflicts.join(", ") }}
           </p>
-          <Field orientation="horizontal" class="my-5">
-            <FieldContent
-              ><FieldLabel for="pif-enabled">{{ t("enabled") }}</FieldLabel
-              ><FieldDescription>{{ t("enableHelp") }}</FieldDescription></FieldContent
-            >
-            <Switch id="pif-enabled" v-model="s.options.value.enabled" />
-          </Field>
-          <Button :disabled="s.busy.value" @click="s.saveOptions(list)"
-            ><Save />{{ global.t("core.actions.save") }}</Button
-          >
           <Button variant="ghost" :disabled="s.busy.value" @click="s.refresh()"
             ><RefreshCw />{{ global.t("core.actions.refresh") }}</Button
           >
@@ -252,7 +244,7 @@ async function importFile(event: Event) {
           </div>
           <div class="mt-3 flex gap-2">
             <Button
-              :disabled="s.busy.value || !!s.taskId.value"
+              :disabled="s.busy.value || !!s.taskId.value || data?.options.enabled === false"
               @click="s.generate(strong, match)"
               >{{ t("generate") }}</Button
             ><Button

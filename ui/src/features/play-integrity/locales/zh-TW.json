@@ -101,5 +101,12 @@
   "recover": "確認還原",
   "recovered": "已還原原設定。",
   "replaceHelp": "僅允許 system、product、system_ext、vendor、odm、oem 分割區的 app、priv-app 或 overlay 下的單一項目。萬用字元僅限應用名稱；拒絕根目錄、父目錄及 overlay/config。",
-  "activationHelp": "完整模式須先套用非空設定才修改全域環境。明確儲存 scripts-only 模式後，沒有指紋也可執行相容性指令碼。"
+  "activationHelp": "完整模式須先套用非空設定才修改全域環境。明確儲存 scripts-only 模式後，沒有指紋也可執行相容性指令碼。",
+  "disableNow": "立即關閉 PIF",
+  "retryCleanup": "重試清理",
+  "powerHelp": "關閉操作獨立於設定驗證，停止後續注入和相容性指令碼。既有 hook 需重啟 PI 程序；已掛載遮罩與全域屬性需重啟裝置。",
+  "disabledHelp": "PIF 已關閉，保留設定與工具箱其他功能。請重啟 PI 程序，並重啟裝置以清除既有影響。",
+  "cleanupPending": "停用標記已生效，部分清理尚未完成。外部修改已保留，請查看詳情，處理後重試。",
+  "denylistRestoreHelp": "關閉時僅還原有記錄且未被外部修改的 DenyList 變更。Magisk 可能因此終止相關程序；未記錄的舊變更不會推測還原。",
+  "persistRestoreHelp": "持久相容屬性沿用上游還原方式：寫回記錄的原值，可能覆蓋後來對這些屬性所做的修改。"
 }

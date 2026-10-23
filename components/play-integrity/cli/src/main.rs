@@ -1,12 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Play Integrity Fork derivative; see the engine LICENSE and UPSTREAM.json.
 // Modified 2026-10-24: independent CLI and versioned process interface.
+mod command;
 mod config;
+mod denylist;
 mod files;
 mod network;
 mod operations;
 mod paths;
+mod power;
 mod rules;
+mod selinux;
+mod shutdown;
+mod stages;
 mod tasks;
 
 use anyhow::{Result, bail};

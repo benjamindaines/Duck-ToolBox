@@ -125,3 +125,31 @@ test("shows interrupted application recovery on the home page", async ({ page, o
   await open("/", { query: { "interrupted-transaction": "1" } })
   await expect(page.getByRole("button", { name: "Confirm recovery", exact: true })).toBeVisible()
 })
+
+test("can disable PIF even when its configuration page reports an error", async ({
+  page,
+  open,
+}) => {
+  await open("/play-integrity/config", { query: { "invalid-pif": "1" } })
+  await expect(page.getByText("Invalid configuration fixture", { exact: true })).toBeVisible()
+  await page.getByRole("button", { name: "Disable PIF now", exact: true }).click()
+  await expect(
+    page.getByRole("switch", { name: "Enable the engine", exact: true }),
+  ).not.toBeChecked()
+  await expect(
+    page
+      .getByText(/PIF is disabled\. Configuration and other toolbox features are retained\./)
+      .first(),
+  ).toBeVisible()
+})
+test("disabling cancels generation and the independent power switch can enable again", async ({
+  page,
+  open,
+}) => {
+  await open("/play-integrity/generate")
+  await page.getByRole("button", { name: "Generate fingerprint", exact: true }).click()
+  await page.getByRole("button", { name: "Disable PIF now", exact: true }).click()
+  await expect(page.getByText("Generation cancelled", { exact: true })).toBeVisible()
+  await page.getByRole("switch", { name: "Enable the engine", exact: true }).click()
+  await expect(page.getByRole("switch", { name: "Enable the engine", exact: true })).toBeChecked()
+})

@@ -1,22 +1,14 @@
 # Derived from Play Integrity Fork, osm0sis, chiteroman and contributors.
 # Source: https://github.com/osm0sis/PlayIntegrityFork/tree/23ec56c2440c4fd1a5e893a23ef7861d6366a828
 # SPDX-License-Identifier: GPL-3.0-only
-# Modified 2026-10-23: independent engine packaging, bounded configuration and runtime operations.
+# Modified 2026-10-24: independent engine packaging, bounded configuration and runtime operations.
 MODPATH="$PIF_ENGINE_ROOT"
 . $PIF_ENGINE_SCRIPTS/common_func.sh
 
+# Magisk DenyList is managed by the CLI with a persistent restoration journal.
+pif_running || return 0
 if [ "$PIF_ENGINE_MODE" != "scripts-only" ]; then
-    # Remove Play Services and Play Store from Magisk DenyList when set to Enforce in normal mode
-    if magisk --denylist status; then
-        magisk --denylist rm com.google.android.gms
-        magisk --denylist rm com.android.vending
-    fi
-    # Run common tasks for installation and boot-time
-    . $PIF_ENGINE_SCRIPTS/common_setup.sh
-else
-    # Add Play Services DroidGuard and Play Store processes to Magisk DenyList for better results in scripts-only mode
-    magisk --denylist add com.google.android.gms com.google.android.gms.unstable
-    magisk --denylist add com.android.vending
+    . "$PIF_ENGINE_SCRIPTS/common_setup.sh"
 fi
 
 # The shared prop-handler flag controls OEM sensitive properties, not ROM conflict masks.

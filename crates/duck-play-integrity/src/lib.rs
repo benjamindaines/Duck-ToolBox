@@ -31,6 +31,8 @@ pub struct Input {
 }
 #[derive(Debug, Subcommand)]
 pub enum Command {
+    Power,
+    Disable,
     Status,
     Config,
     Preview(Input),
@@ -47,6 +49,8 @@ pub enum Command {
 
 fn run(command: Command, ctx: &Context) -> CommandResult {
     let (operation, label, input) = match command {
+        Command::Power => ("power", "play-integrity.power", None),
+        Command::Disable => ("disable", "play-integrity.disable", None),
         Command::Status => ("status", "play-integrity.status", None),
         Command::Config => ("config", "play-integrity.config", None),
         Command::Preview(v) => ("preview", "play-integrity.preview", Some(v)),

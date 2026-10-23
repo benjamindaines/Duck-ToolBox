@@ -101,5 +101,12 @@
   "recover": "Xác nhận khôi phục",
   "recovered": "Đã khôi phục cấu hình trước.",
   "replaceHelp": "Chỉ cho phép từng mục trong app, priv-app hoặc overlay của system, product, system_ext, vendor, odm hoặc oem. Ký tự đại diện chỉ dùng trong tên ứng dụng; từ chối thư mục gốc, đường dẫn cha và overlay/config.",
-  "activationHelp": "Chế độ đầy đủ chỉ đổi môi trường toàn cục sau khi áp dụng cấu hình không rỗng. Lưu rõ chế độ scripts-only cho phép chạy tập lệnh tương thích không cần dấu vân tay."
+  "activationHelp": "Chế độ đầy đủ chỉ đổi môi trường toàn cục sau khi áp dụng cấu hình không rỗng. Lưu rõ chế độ scripts-only cho phép chạy tập lệnh tương thích không cần dấu vân tay.",
+  "disableNow": "Tắt PIF ngay",
+  "retryCleanup": "Thử dọn dẹp lại",
+  "powerHelp": "Dừng các lần chèn và tập lệnh tiếp theo mà không phụ thuộc kiểm tra cấu hình. Hook hiện có cần khởi động lại tiến trình PI; lớp che đã gắn và thuộc tính toàn cục cần khởi động lại thiết bị.",
+  "disabledHelp": "PIF đã tắt. Cấu hình và các công cụ khác được giữ lại. Khởi động lại tiến trình PI và thiết bị để xóa ảnh hưởng hiện có.",
+  "cleanupPending": "Cờ dừng đã có hiệu lực nhưng còn việc dọn dẹp. Thay đổi bên ngoài được giữ lại. Xem chi tiết và thử lại sau khi xử lý.",
+  "denylistRestoreHelp": "Khi tắt, chỉ khôi phục thay đổi DenyList có ghi nhận và chưa bị sửa bên ngoài. Magisk có thể kết thúc các tiến trình liên quan. Không đoán thay đổi cũ chưa được ghi lại.",
+  "persistRestoreHelp": "Thuộc tính tương thích thường trực được khôi phục theo upstream: ghi lại giá trị gốc đã lưu và có thể ghi đè các thay đổi về sau."
 }

@@ -37,6 +37,7 @@ to the other and is usable from an ordinary root shell.
 
 | Operation | Input / result |
 | --- | --- |
+| power / disable | Minimal power state / independent fail-closed stop; cancels generation, restores recorded compatibility changes, reports incomplete cleanup |
 | status | Options, prerequisites, conflicts, boot evidence and reboot requirement |
 | config | Canonical prop/JSON content, entries and revision |
 | preview | content, format (auto/prop/json), optional migrate/advanced/force; returns changes and base revision |
@@ -77,3 +78,23 @@ the pinned Magisk, KernelSU and AOSP sources and the complete behavioral limits.
 `pif-engine migrate-file INPUT OUTPUT --advanced --format json` provides standalone
 safe migration, preserving unknown fields and backing up an existing output as
 a `.bak` sibling. The shell wrapper delegates to this command.
+
+`pif-engine request disable` remains usable with invalid configuration and while
+another write holds the engine lock. A private stop token closes future companion
+transfers and script mutations first. Explicit enabling acknowledges the current
+token; a stale enable cannot acknowledge a later stop. Configuration is preserved,
+and generation/import/application never enable the engine implicitly. Use
+`request power` to inspect the gate and any retained cleanup warnings. `options`
+with `enabled=false` also takes this shutdown path before validating other fields.
+
+DenyList changes are journaled per package/process before each mutation and read
+back. Shutdown restores recorded values only while the relevant package still
+matches the expected state. External edits and unrecorded historical values are
+preserved. Magisk may terminate processes when entries are added under enforcement.
+Permissive SELinux visibility permissions are also recorded and conditionally
+restored; the enforcing state is never changed. Persistent compatibility properties
+retain upstream restoration by writing the recorded original values, which may
+overwrite later edits to the same properties; the power control discloses this. Active process hooks require a
+PI process restart, and mounts/global properties require a device reboot. Other
+toolbox features remain independent. Boot shell stages are bounded to 30 seconds;
+explicit cleanup has a five-second bound and retains recovery files on failure.

@@ -161,7 +161,13 @@ export function useIntegrity() {
       action(async () => prepare(await integrityApi.importPreview(source))),
     saveOptions: (list: string) =>
       action(async () => {
-        await integrityApi.options({ ...options.value, app_replace_list: list })
+        await integrityApi.options({
+          mode: options.value.mode,
+          skipdelprop: options.value.skipdelprop,
+          skippersistprop: options.value.skippersistprop,
+          skipmatchdevice: options.value.skipmatchdevice,
+          app_replace_list: list,
+        })
         await refresh()
         notifySuccess(t("reboot"))
       }),

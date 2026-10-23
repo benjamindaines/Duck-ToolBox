@@ -54,6 +54,7 @@ mkdir() { printf unsafe > "$PIF_ENGINE_DATA/mutated"; }
 touch() { printf unsafe > "$PIF_ENGINE_DATA/mutated"; }
 mknod() { printf unsafe > "$PIF_ENGINE_DATA/mutated"; }
 MODPATH=$PIF_ENGINE_ROOT
+. "$PIF_ENGINE_SCRIPTS/common_func.sh"
 . "$PIF_ENGINE_SCRIPTS/common_setup.sh"
 '''], env={**os.environ,"PIF_ENGINE_DATA":str(root),"PIF_ENGINE_ROOT":str(root / "module"),"PIF_ENGINE_SCRIPTS":str(SCRIPTS)},capture_output=True)
         assert rejected.returncode != 0, invalid
@@ -70,6 +71,20 @@ pif_valid_app_path /product/app/XiaomiEUInject
     (root / "overlay-paths.txt").write_text("system/\nsystem/app/../\n")
     run('sh "$PIF_ENGINE_SCRIPTS/stage.sh" cleanup',root,PIF_ENGINE_MODE="full")
     assert (root / "module/system/.replace").exists()
+
+    # Preserve unowned contents and the manifest when an overlay cannot be removed.
+    retained=root / "module/system/app/TestApp"
+    retained.mkdir(parents=True)
+    (retained / ".replace").touch()
+    (retained / "external").write_text("keep")
+    (root / "overlay-paths.txt").write_text("system/app/TestApp\n")
+    attempted=subprocess.run(["sh",str(SCRIPTS / "stage.sh"),"cleanup"],env={**os.environ,"PIF_ENGINE_DATA":str(root),"PIF_ENGINE_ROOT":str(root / "module"),"PIF_ENGINE_SCRIPTS":str(SCRIPTS),"PIF_ENGINE_MODE":"full"},capture_output=True)
+    assert attempted.returncode != 0
+    assert (retained / "external").read_text()=="keep"
+    assert (root / "overlay-paths.txt").exists()
+    (retained / "external").unlink()
+    run('sh "$PIF_ENGINE_SCRIPTS/stage.sh" cleanup',root,PIF_ENGINE_MODE="full")
+    assert not (root / "overlay-paths.txt").exists()
 
     for mode in ["full", "scripts-only"]:
         (root / "skippersistprop").touch()
@@ -94,8 +109,23 @@ printf 'late\\n' >> "$PIF_ENGINE_DATA/order"
         assert any("ro.debuggable" in item for item in lines[:late])
         assert not any("ro.boot.verifiedbootstate" in item for item in lines[:late])
         assert any("ro.boot.verifiedbootstate" in item for item in lines[late:])
-        expected = "rm" if mode == "full" else "add"
-        assert any(f"magisk --denylist {expected} com.google.android.gms" in item for item in lines)
+        assert not any("magisk --denylist" in item for item in lines)
         (root / "order").unlink()
 
-print("Shell restoration, DenyList modes and OEM ordering passed")
+    (root / "disabled").write_text("stop")
+    run('''
+getprop() { printf '1'; }
+resetprop() { printf 'unexpected' >> "$PIF_ENGINE_DATA/after-stop"; }
+ui_print() { :; }
+. "$PIF_ENGINE_SCRIPTS/post-fs-data.sh"
+. "$PIF_ENGINE_SCRIPTS/service.sh"
+''', root, PIF_ENGINE_MODE="full")
+    assert not (root / "after-stop").exists()
+    (root / "enabled-token").write_text("stop")
+    run('''
+. "$PIF_ENGINE_SCRIPTS/power.sh"
+pif_running
+''',root)
+
+
+print("Shell restoration, shutdown gate, ROM path guards and OEM ordering passed")

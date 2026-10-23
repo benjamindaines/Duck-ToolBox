@@ -72,6 +72,30 @@ describe.skipIf(!hasDuckd || !existsSync(engine))(
         '[trust]\nboot_patchlevel="2026-09-05"\n',
       )
     })
+    it("disables with broken configuration, keeps saved files, and requires a fresh power revision to enable", async () => {
+      host = installHost({
+        files: {
+          "/data/adb/play-integrity/options.json": "{broken",
+          "/data/adb/play-integrity/custom.pif.json": "{broken config",
+          "/data/adb/play-integrity/custom.app_replace_list.txt": "/system/",
+        },
+      })
+      const before = await integrityApi.power()
+      const stopped = await integrityApi.disable()
+      expect(stopped.enabled).toBe(false)
+      expect((await integrityApi.power()).enabled).toBe(false)
+      expect(readFileSync(host.path("/data/adb/play-integrity/custom.pif.json"), "utf8")).toBe(
+        "{broken config",
+      )
+      writeFileSync(host.path("/data/adb/play-integrity/options.json"), "{}")
+      await expect(
+        integrityApi.options({ enabled: true, expected_stop_revision: before.stop_revision }),
+      ).rejects.toThrow()
+      await integrityApi.options({ enabled: true, expected_stop_revision: stopped.stop_revision })
+      expect((await integrityApi.power()).enabled).toBe(true)
+      await integrityApi.options({ enabled: false, app_replace_list: "/system/" })
+      expect((await integrityApi.power()).enabled).toBe(false)
+    })
     it("imports without changing the source and preserves conflict state", async () => {
       host = installHost({
         files: {

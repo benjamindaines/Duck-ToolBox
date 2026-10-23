@@ -101,5 +101,12 @@
   "recover": "Konfirmasi pemulihan",
   "recovered": "Konfigurasi sebelumnya dipulihkan.",
   "replaceHelp": "Hanya entri individual di app, priv-app atau overlay pada system, product, system_ext, vendor, odm atau oem yang diizinkan. Wildcard hanya pada nama aplikasi; akar, jalur induk dan overlay/config ditolak.",
-  "activationHelp": "Mode penuh mengubah lingkungan global setelah konfigurasi tidak kosong diterapkan. Menyimpan scripts-only secara eksplisit mengaktifkan skrip kompatibilitas tanpa sidik jari."
+  "activationHelp": "Mode penuh mengubah lingkungan global setelah konfigurasi tidak kosong diterapkan. Menyimpan scripts-only secara eksplisit mengaktifkan skrip kompatibilitas tanpa sidik jari.",
+  "disableNow": "Nonaktifkan PIF sekarang",
+  "retryCleanup": "Ulangi pembersihan",
+  "powerHelp": "Menghentikan injeksi dan skrip berikutnya tanpa bergantung pada validasi konfigurasi. Hook yang ada perlu mulai ulang proses PI; mount dan properti global perlu mulai ulang perangkat.",
+  "disabledHelp": "PIF dinonaktifkan. Konfigurasi dan alat lain tetap ada. Mulai ulang proses PI dan perangkat untuk menghapus efek yang ada.",
+  "cleanupPending": "Penghentian aktif, tetapi sebagian pembersihan tertunda. Perubahan eksternal dipertahankan. Periksa detail dan coba lagi setelah menyelesaikannya.",
+  "denylistRestoreHelp": "Saat dinonaktifkan, hanya perubahan DenyList tercatat tanpa suntingan eksternal yang dipulihkan. Magisk dapat menghentikan proses terkait. Perubahan lama tanpa catatan tidak ditebak.",
+  "persistRestoreHelp": "Properti kompatibilitas persisten dipulihkan mengikuti upstream: nilai asli tercatat ditulis kembali dan dapat menimpa perubahan berikutnya."
 }

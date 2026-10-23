@@ -239,9 +239,120 @@ fn lifecycle_uses_cleanup_when_disabled_and_records_the_boot_options() {
     );
     assert_eq!(
         fs::read_to_string(root.path().join("data/stage.trace")).unwrap(),
-        "cleanup\n"
+        "cleanup\ncleanup\n"
     );
     let evidence: Value =
         serde_json::from_slice(&fs::read(root.path().join("data/boot.json")).unwrap()).unwrap();
     assert_eq!(evidence["options"]["enabled"], false);
+}
+
+#[test]
+fn disable_cancels_generation_and_survives_broken_options() {
+    let root = fixture("sleep 30; echo MODEL=unexpected > custom.pif.prop\n");
+    let started = request(root.path(), "task-start", json!({}));
+    fs::write(root.path().join("data/options.json"), "{broken").unwrap();
+    let stopped = request(root.path(), "disable", json!({}));
+    assert_eq!(stopped["ok"], true, "{stopped}");
+    assert_eq!(stopped["data"]["enabled"], false);
+    assert_eq!(
+        terminal(root.path(), &started["data"]["id"])["data"]["state"],
+        "cancelled"
+    );
+    assert_eq!(
+        request(root.path(), "power", json!({}))["data"]["enabled"],
+        false
+    );
+    assert_eq!(request(root.path(), "task-start", json!({}))["ok"], false);
+    assert_eq!(
+        fs::read_to_string(root.path().join("data/options.json")).unwrap(),
+        "{broken"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn magisk_adapter_journals_cli_changes_and_retains_external_edits() {
+    use std::os::unix::fs::PermissionsExt;
+    let root = fixture("exit 0\n");
+    fs::write(root.path().join("module/scripts/stage.sh"), "exit 0\n").unwrap();
+    let magisk_dir = root.path().join("sys/data/adb/magisk");
+    fs::create_dir_all(&magisk_dir).unwrap();
+    let magisk = magisk_dir.join("magisk");
+    fs::write(&magisk,r#"#!/bin/sh
+base=${0%/*}
+case "$2" in
+status) exit 0 ;;
+ls) cat "$base/list" ;;
+rm) awk -F'|' -v pkg="$3" -v proc="$4" '$1!=pkg || $2!=proc' "$base/list" > "$base/next"; mv "$base/next" "$base/list" ;;
+add) printf '%s|%s\n' "$3" "$4" >> "$base/list" ;;
+esac
+"#).unwrap();
+    fs::set_permissions(&magisk, fs::Permissions::from_mode(0o700)).unwrap();
+    let original =
+        "com.google.android.gms|com.google.android.gms\ncom.android.vending|com.android.vending\n";
+    fs::write(magisk_dir.join("list"), original).unwrap();
+    let preview = request(root.path(), "preview", json!({"content":"MODEL=A"}));
+    assert_eq!(
+        request(
+            root.path(),
+            "apply",
+            json!({"content":"MODEL=A","revision":preview["data"]["revision"]})
+        )["ok"],
+        true
+    );
+    let early = || {
+        Command::new(env!("CARGO_BIN_EXE_pif-engine"))
+            .args(["stage", "early"])
+            .env("PIF_ENGINE_DATA", root.path().join("data"))
+            .env("PIF_ENGINE_MODULE", root.path().join("module"))
+            .env("PIF_ENGINE_SYSROOT", root.path().join("sys"))
+            .output()
+            .unwrap()
+    };
+    assert!(early().status.success());
+    assert_eq!(fs::read_to_string(magisk_dir.join("list")).unwrap(), "");
+    let stopped = request(root.path(), "disable", json!({}));
+    assert_eq!(stopped["data"]["cleanup_pending"], false, "{stopped}");
+    let entries = |s: &str| {
+        s.lines()
+            .map(str::to_owned)
+            .collect::<std::collections::BTreeSet<_>>()
+    };
+    assert_eq!(
+        entries(&fs::read_to_string(magisk_dir.join("list")).unwrap()),
+        entries(original)
+    );
+    assert_eq!(
+        request(
+            root.path(),
+            "options",
+            json!({"enabled":true,"expected_stop_revision":stopped["data"]["stop_revision"]})
+        )["ok"],
+        true
+    );
+    assert!(early().status.success());
+    fs::write(
+        magisk_dir.join("list"),
+        "com.google.android.gms|com.google.android.gms.external\n",
+    )
+    .unwrap();
+    let stopped = request(root.path(), "disable", json!({}));
+    assert_eq!(stopped["data"]["cleanup_pending"], true);
+    let saved = fs::read_to_string(magisk_dir.join("list")).unwrap();
+    assert!(saved.contains(".external"));
+    assert!(!saved.contains("com.google.android.gms|com.google.android.gms\n"));
+    // Resolve only the GMS conflict; Play Store was already restored independently.
+    fs::write(
+        magisk_dir.join("list"),
+        "com.android.vending|com.android.vending\n",
+    )
+    .unwrap();
+    assert_eq!(
+        request(root.path(), "disable", json!({}))["data"]["cleanup_pending"],
+        false
+    );
+    assert_eq!(
+        entries(&fs::read_to_string(magisk_dir.join("list")).unwrap()),
+        entries(original)
+    );
 }

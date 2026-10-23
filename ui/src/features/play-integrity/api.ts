@@ -59,7 +59,22 @@ const appliedSchema = z.object({
   backup: z.string(),
   restart_required: z.boolean(),
 })
+const powerSchema = z.object({
+  enabled: z.boolean(),
+  disabled_by_marker: z.boolean(),
+  stop_revision: z.string(),
+  cleanup_pending: z.boolean(),
+  issues: z.array(z.object({ step: z.string(), message: z.string() })),
+})
 export const integrityApi = {
+  power: () => duckd(command("power"), { schema: powerSchema }),
+  disable: () =>
+    duckd(command("disable"), {
+      schema: powerSchema.extend({
+        reboot_required: z.boolean(),
+        process_restart_required: z.boolean(),
+      }),
+    }),
   transactionStatus: () =>
     duckd(["integrity-transaction", "status"], {
       schema: z.object({ pending: z.boolean(), journal_path: z.string(), journal: z.unknown() }),
@@ -99,7 +114,9 @@ export const integrityApi = {
       input: { backup },
       schema: z.object({ config: configSchema, restart_required: z.boolean() }),
     }),
-  options: (options: Options & { app_replace_list?: string }) =>
+  options: (
+    options: Partial<Options> & { app_replace_list?: string; expected_stop_revision?: string },
+  ) =>
     duckd(command("options"), {
       input: options,
       schema: z.object({ options: optionsSchema, reboot_required: z.boolean() }),
