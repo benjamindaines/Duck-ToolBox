@@ -150,6 +150,66 @@ test("disabling cancels generation and the independent power switch can enable a
   await page.getByRole("button", { name: "Generate fingerprint", exact: true }).click()
   await page.getByRole("button", { name: "Disable PIF now", exact: true }).click()
   await expect(page.getByText("Generation cancelled", { exact: true })).toBeVisible()
+  await expect(page.getByRole("switch", { name: "Enable the engine", exact: true })).toHaveCount(0)
+  await page.getByRole("link", { name: "Status", exact: true }).click()
   await page.getByRole("switch", { name: "Enable the engine", exact: true }).click()
   await expect(page.getByRole("switch", { name: "Enable the engine", exact: true })).toBeChecked()
+})
+
+
+test("keeps engine enable controls on status while retaining emergency stop elsewhere", async ({ page, open }) => {
+  await open("/play-integrity")
+  await expect(page.getByRole("switch", { name: "Enable the engine", exact: true })).toBeVisible()
+  for (const tab of ["Configuration", "Fingerprints", "Compatibility", "Diagnostics", "Licenses"]) {
+    await page.getByRole("link", { name: tab, exact: true }).click()
+    await expect(page.getByRole("switch", { name: "Enable the engine", exact: true })).toHaveCount(0)
+    await expect(page.getByRole("button", { name: "Disable PIF now", exact: true })).toBeVisible()
+  }
+  await page.getByRole("link", { name: "Status", exact: true }).click()
+  await expect(page.getByRole("switch", { name: "Enable the engine", exact: true })).toBeVisible()
+})
+
+test("returns home from every Play Integrity tab, including direct links", async ({ page, open }) => {
+  for (const route of [
+    "/play-integrity",
+    "/play-integrity/config",
+    "/play-integrity/generate",
+    "/play-integrity/compatibility",
+    "/play-integrity/diagnostics",
+    "/play-integrity/license",
+  ]) {
+    await open(route)
+    await page.getByRole("button", { name: "Back", exact: true }).click()
+    await expect(page).toHaveURL(/#\/$/)
+  }
+})
+
+test("scopes the pressed tab state layer instead of overlaying the viewport", async ({ page, open }) => {
+  await open("/play-integrity")
+  for (const tab of ["Status", "Configuration", "Fingerprints", "Compatibility", "Diagnostics", "Licenses"]) {
+    const geometry = await page.getByRole("link", { name: tab, exact: true }).evaluate((element) => {
+      const layer = getComputedStyle(element, "::before")
+      const trigger = element.getBoundingClientRect()
+      return {
+        position: getComputedStyle(element).position,
+        layerWidth: parseFloat(layer.width),
+        layerHeight: parseFloat(layer.height),
+        triggerWidth: trigger.width,
+        triggerHeight: trigger.height,
+      }
+    })
+    expect(geometry.position).toBe("relative")
+    expect(geometry.layerWidth).toBeGreaterThan(0)
+    expect(geometry.layerWidth).toBeLessThanOrEqual(geometry.triggerWidth + 1)
+    expect(geometry.layerHeight).toBeLessThanOrEqual(geometry.triggerHeight + 1)
+  }
+})
+
+test("preserves an uncommitted configuration draft across tab changes", async ({ page, open }) => {
+  await open("/play-integrity/config")
+  const draft = "MODEL=DraftOnly\\nEXTRA=keep"
+  await page.getByLabel("Configuration", { exact: true }).fill(draft)
+  await page.getByRole("link", { name: "Diagnostics", exact: true }).click()
+  await page.getByRole("link", { name: "Configuration", exact: true }).click()
+  await expect(page.getByLabel("Configuration", { exact: true })).toHaveValue(draft)
 })
