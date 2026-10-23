@@ -102,7 +102,7 @@ pub async fn run(command: Command, ctx: &Context) -> CommandResult {
         }
         Command::Log(args) => {
             log::page(&ctx.paths, args.limit, args.offset).into_command("system.log", code_of)
-        },
+        }
         Command::OpenUrl(args) => open_url(&args.url)
             .map(|()| json!({ "url": args.url }))
             .into_command("system.open-url", code_of),
