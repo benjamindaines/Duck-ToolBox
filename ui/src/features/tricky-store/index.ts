@@ -58,8 +58,6 @@ export default defineFeature({
           if (status.config_error) throw new Error(status.config_error)
           return trickyStoreApi.patchPreview(patch)
         },
-        apply: (preview) => trickyStoreApi.patchApply(preview),
-        restore: (backup) => trickyStoreApi.patchRestore(backup),
       },
     ],
     keyboxTargets: [

@@ -14,7 +14,7 @@ pub mod error;
 pub mod exclude;
 pub mod keybox;
 pub mod model;
-mod patch;
+pub mod patch;
 mod policy;
 pub mod props;
 pub mod providers;

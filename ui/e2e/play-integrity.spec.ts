@@ -95,3 +95,33 @@ test("imports a file into a preview and rolls back a rejected patch update", asy
   await expect(page.getByText("Patch fixture rejected", { exact: true })).toBeVisible()
   await expect(page.getByLabel("Configuration", { exact: true })).toHaveValue(/MODEL=Pixel 9 Pro/)
 })
+
+test("requires confirmation to recover an interrupted backend transaction", async ({
+  page,
+  open,
+}) => {
+  await open("/play-integrity/config", { query: { "interrupted-transaction": "1" } })
+  await expect(page.getByText("Interrupted configuration update", { exact: true })).toBeVisible()
+  await page.getByLabel("Configuration", { exact: true }).fill("MODEL=Blocked")
+  await page.getByRole("button", { name: "Preview changes", exact: true }).click()
+  await expect(
+    page.getByRole("button", { name: "Apply configuration", exact: true }),
+  ).toBeDisabled()
+  await page.getByRole("button", { name: "Confirm recovery", exact: true }).click()
+  await expect(page.getByRole("alertdialog")).toBeVisible()
+  await page.getByRole("alertdialog").getByRole("button", { name: "Cancel", exact: true }).click()
+  await expect(
+    page.getByRole("button", { name: "Apply configuration", exact: true }),
+  ).toBeDisabled()
+  await page.getByRole("button", { name: "Confirm recovery", exact: true }).click()
+  await page
+    .getByRole("alertdialog")
+    .getByRole("button", { name: "Confirm recovery", exact: true })
+    .click()
+  await expect(page.getByRole("button", { name: "Apply configuration", exact: true })).toBeEnabled()
+})
+
+test("shows interrupted application recovery on the home page", async ({ page, open }) => {
+  await open("/", { query: { "interrupted-transaction": "1" } })
+  await expect(page.getByRole("button", { name: "Confirm recovery", exact: true })).toBeVisible()
+})

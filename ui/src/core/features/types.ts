@@ -42,13 +42,11 @@ export interface SecurityPatchPreview {
   changes: { key: string; before: string | null; after: string }[]
 }
 
-/** The keystore feature remains the sole writer of its own configuration. */
+/** Participant id identifies the backend composition contract; the keystore owns all writes. */
 export interface SecurityPatchTarget {
   id: string
   labelKey: string
   preview(patch: string): Promise<SecurityPatchPreview | null>
-  apply(preview: SecurityPatchPreview): Promise<{ backup: string; restart_required: boolean }>
-  restore(backup: string): Promise<unknown>
 }
 
 export type ContributionKey = keyof Contributions

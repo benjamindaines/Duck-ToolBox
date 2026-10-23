@@ -45,6 +45,32 @@ resetprop() { printf '%s' "$4" > "$PIF_ENGINE_DATA/restored"; }
     assert not (root / "continued").exists()
     (root / "uninstall.sh").unlink()
 
+    # Validate the complete list before any whiteout or overlay operation.
+    for invalid in ["/", "/system/", "/system/app", "/system/app/..", "/system/app/../*", "/system/overlay/*", "/system/overlay/config"]:
+        (root / "custom.app_replace_list.txt").write_text(invalid + "\n")
+        rejected = subprocess.run(["sh", "-c", r'''
+ui_print() { :; }
+mkdir() { printf unsafe > "$PIF_ENGINE_DATA/mutated"; }
+touch() { printf unsafe > "$PIF_ENGINE_DATA/mutated"; }
+mknod() { printf unsafe > "$PIF_ENGINE_DATA/mutated"; }
+MODPATH=$PIF_ENGINE_ROOT
+. "$PIF_ENGINE_SCRIPTS/common_setup.sh"
+'''], env={**os.environ,"PIF_ENGINE_DATA":str(root),"PIF_ENGINE_ROOT":str(root / "module"),"PIF_ENGINE_SCRIPTS":str(SCRIPTS)},capture_output=True)
+        assert rejected.returncode != 0, invalid
+        assert not (root / "mutated").exists(), invalid
+    run('''
+ui_print() { :; }
+. "$PIF_ENGINE_SCRIPTS/path_rules.sh"
+pif_valid_app_path /system_ext/app/helluvaProductDevice*
+pif_valid_app_path /product/app/XiaomiEUInject
+''', root)
+    # Old/corrupt manifests must never clean the root of the module's system overlay.
+    (root / "module/system").mkdir(parents=True)
+    (root / "module/system/.replace").touch()
+    (root / "overlay-paths.txt").write_text("system/\nsystem/app/../\n")
+    run('sh "$PIF_ENGINE_SCRIPTS/stage.sh" cleanup',root,PIF_ENGINE_MODE="full")
+    assert (root / "module/system/.replace").exists()
+
     for mode in ["full", "scripts-only"]:
         (root / "skippersistprop").touch()
         (root / "custom.app_replace_list.txt").write_text("")

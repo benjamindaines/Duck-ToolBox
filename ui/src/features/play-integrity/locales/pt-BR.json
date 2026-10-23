@@ -95,5 +95,11 @@
     "wildcard": "Padrão não suportado: apenas * inicial para sufixo está implementado.",
     "canary": "Canary mantém heurísticas originais: Pixel 10a usa API 35 (nota: real 36), aparelhos desconhecidos 37, board API 32. As seis semanas e o patch alternativo são estimativas, não aceitação do Google nem validade dos certificados."
   },
-  "strongHelp": "Define spoofProvider=0 para o candidato. Mantém valores de patch Build e propriedade coerentes; nenhum resultado é garantido."
+  "strongHelp": "Define spoofProvider=0 para o candidato. Mantém valores de patch Build e propriedade coerentes; nenhum resultado é garantido.",
+  "recoveryTitle": "Atualização de configuração interrompida",
+  "recoveryHelp": "A atualização não terminou. Confira o caminho do registro e confirme a restauração. Novas aplicações ficam bloqueadas até a recuperação.",
+  "recover": "Confirmar restauração",
+  "recovered": "Configurações anteriores restauradas.",
+  "replaceHelp": "Somente entradas individuais em app, priv-app ou overlay de system, product, system_ext, vendor, odm ou oem são permitidas. Curingas apenas nos nomes de apps; raízes, caminhos superiores e overlay/config são rejeitados.",
+  "activationHelp": "O modo completo altera o ambiente global após aplicar uma configuração não vazia. Salvar explicitamente scripts-only ativa scripts de compatibilidade sem impressão digital."
 }

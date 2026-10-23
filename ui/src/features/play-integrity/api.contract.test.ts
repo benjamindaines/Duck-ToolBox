@@ -1,5 +1,7 @@
 // @vitest-environment node
-import { existsSync } from "node:fs"
+import { duckd } from "@/core/duckd"
+import { z } from "zod"
+import { existsSync, readFileSync, writeFileSync } from "node:fs"
 import path from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
 import { CONTRACT, hasDuckd, installHost } from "@/core/testing/host"
@@ -33,6 +35,42 @@ describe.skipIf(!hasDuckd || !existsSync(engine))(
       expect(saved.config.entries.EXTRA).toBe("preserved")
       await expect(integrityApi.apply(preview)).rejects.toMatchObject({ code: "engine_error" })
       expect((await integrityApi.restore(saved.backup)).config.entries).toEqual({})
+    })
+    it("persists interrupted cross-module work and requires confirmed, repeatable recovery", async () => {
+      host = installHost({
+        files: {
+          "/data/adb/modules/oh_my_keymint/module.prop": "id=oh_my_keymint\nversionCode=1",
+          "/data/misc/keystore/omk/config.toml": '[trust]\nboot_patchlevel="2026-09-05"\n',
+        },
+      })
+      const preview = await integrityApi.preview("MODEL=Journal\nSECURITY_PATCH=2026-10-05")
+      const patch = await duckd(["tricky-store", "patch", "preview"], {
+        input: { patch: "2026-10-05" },
+        schema: z.object({ patch: z.string(), revision: z.string() }),
+      })
+      await integrityApi.applyTransaction(preview, { target: "tricky-store", ...patch })
+      const status = await integrityApi.transactionStatus()
+      expect(status.pending).toBe(false)
+      const journal = JSON.parse(readFileSync(status.journal_path, "utf8"))
+      // Reproduce termination after both writes but before the completion record.
+      journal.phase = "applying"
+      writeFileSync(status.journal_path, JSON.stringify(journal))
+      expect((await integrityApi.transactionStatus()).pending).toBe(true)
+      await expect(
+        integrityApi.applyTransaction(await integrityApi.preview("MODEL=Blocked")),
+      ).rejects.toThrow()
+      await expect(
+        duckd(["integrity-transaction", "recover"], {
+          input: { confirmed: false },
+          schema: z.unknown(),
+        }),
+      ).rejects.toThrow()
+      expect((await integrityApi.recoverTransaction()).restart_required).toBe(true)
+      expect((await integrityApi.transactionStatus()).pending).toBe(false)
+      expect((await integrityApi.config()).entries).toEqual({})
+      expect(readFileSync(host.path("/data/misc/keystore/omk/config.toml"), "utf8")).toBe(
+        '[trust]\nboot_patchlevel="2026-09-05"\n',
+      )
     })
     it("imports without changing the source and preserves conflict state", async () => {
       host = installHost({

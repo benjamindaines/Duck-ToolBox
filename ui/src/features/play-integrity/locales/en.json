@@ -95,5 +95,11 @@
     "wildcard": "Unsupported wildcard: only a leading * suffix match is implemented.",
     "canary": "Canary retains upstream heuristics: Pixel 10a uses API 35 despite the noted actual 36; unknown devices use 37; board API uses 32. Six-week expiry and patch fallback are estimates, not Google acceptance or certificate validity."
   },
-  "strongHelp": "Sets spoofProvider=0 for this candidate. Build and property patch values stay paired; no verdict is guaranteed."
+  "strongHelp": "Sets spoofProvider=0 for this candidate. Build and property patch values stay paired; no verdict is guaranteed.",
+  "recoveryTitle": "Interrupted configuration update",
+  "recoveryHelp": "An update did not finish. Review the journal path, then confirm restoration of the saved configurations. Further applications are blocked until recovery finishes.",
+  "recover": "Confirm recovery",
+  "recovered": "Previous configurations restored.",
+  "replaceHelp": "Only individual entries under app, priv-app or overlay in system, product, system_ext, vendor, odm or oem are allowed. Wildcards are limited to app names; roots, parent paths and overlay/config are rejected.",
+  "activationHelp": "Full mode changes the global environment only after a nonempty configuration is applied. Explicitly saving scripts-only mode enables compatibility scripts without a fingerprint."
 }

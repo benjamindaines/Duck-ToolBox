@@ -5,6 +5,7 @@ mod config;
 mod files;
 mod network;
 mod operations;
+mod paths;
 mod rules;
 mod tasks;
 
@@ -106,10 +107,7 @@ impl Engine {
 async fn main() {
     let cli = Cli::parse();
     if matches!(cli.command, Command::Active) {
-        let active = Engine::discover().and_then(|engine| {
-            operations::options(&engine)
-                .map(|opts| opts["enabled"] == true && operations::conflicts(&engine).is_empty())
-        });
+        let active = Engine::discover().and_then(|engine| operations::owns_properties(&engine));
         std::process::exit(if active.unwrap_or(false) { 0 } else { 1 });
     }
     if let Command::Fetch { args } = cli.command {

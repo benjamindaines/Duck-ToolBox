@@ -1,3 +1,4 @@
+import RecoveryNotice from "./components/RecoveryNotice.vue"
 import { ShieldEllipsis } from "@lucide/vue"
 import { defineFeature } from "@/core/features"
 import { localeFiles } from "@/core/i18n"
@@ -7,6 +8,7 @@ export default defineFeature({
   namespace: "playIntegrity",
   icon: ShieldEllipsis,
   order: 15,
+  contributes: { homeWidgets: [RecoveryNotice] },
   routes: ["", "config", "generate", "compatibility", "diagnostics", "license"].map((section) => ({
     path: section,
     component: () => import("./pages/IntegrityPage.vue"),

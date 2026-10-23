@@ -54,7 +54,32 @@ const taskSchema = z.object({
 })
 export type Task = z.infer<typeof taskSchema>
 const command = (operation: string) => ["play-integrity", operation]
+const appliedSchema = z.object({
+  config: configSchema,
+  backup: z.string(),
+  restart_required: z.boolean(),
+})
 export const integrityApi = {
+  transactionStatus: () =>
+    duckd(["integrity-transaction", "status"], {
+      schema: z.object({ pending: z.boolean(), journal_path: z.string(), journal: z.unknown() }),
+    }),
+  applyTransaction: (
+    preview: Preview,
+    patch?: { target: string; patch: string; revision: string },
+  ) =>
+    duckd(["integrity-transaction", "apply"], {
+      input: {
+        engine: { content: preview.json, format: "json", revision: preview.revision },
+        patch,
+      },
+      schema: appliedSchema,
+    }),
+  recoverTransaction: () =>
+    duckd(["integrity-transaction", "recover"], {
+      input: { confirmed: true },
+      schema: z.object({ restored: z.literal(true), restart_required: z.boolean() }),
+    }),
   status: () => duckd(command("status"), { schema: statusSchema }),
   config: () => duckd(command("config"), { schema: configSchema }),
   preview: (content: string, format = "auto", migrate = false) =>

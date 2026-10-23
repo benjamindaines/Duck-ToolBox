@@ -17,12 +17,19 @@ for bin in /data/adb/ksu/bin /data/adb/ap/bin /data/adb/magisk; do
   break
 done
 
+. "$PIF_ENGINE_SCRIPTS/path_rules.sh"
+
 cleanup_overlays() {
   manifest="$PIF_ENGINE_DATA/overlay-paths.txt"
   [ -f "$manifest" ] || return 0
   while IFS= read -r relative; do
     case "$relative" in system/*) ;; *) continue ;; esac
-    case "$relative" in *..* | *\\*) continue ;; esac
+    device_path=/${relative#system/}
+    case "$device_path" in /app/*|/priv-app/*|/overlay/*) device_path=/system$device_path ;; esac
+    case "$device_path" in
+      /*/overlay/config/config.xml) pif_valid_app_path "${device_path%/config/config.xml}/Placeholder.apk" || continue ;;
+      *) pif_valid_app_path "$device_path" || continue ;;
+    esac
     target="$PIF_ENGINE_ROOT/$relative"
     if [ -d "$target" ]; then
       rm -f "$target/.replace"
@@ -33,6 +40,14 @@ cleanup_overlays() {
   done < "$manifest"
   rm -f "$manifest"
 }
+
+case "$1:$PIF_ENGINE_MODE" in
+  setup:full|early:full)
+    list="$PIF_ENGINE_SCRIPTS/app_replace_list.txt"
+    [ ! -f "$PIF_ENGINE_DATA/custom.app_replace_list.txt" ] || list="$PIF_ENGINE_DATA/custom.app_replace_list.txt"
+    pif_validate_list "$list" || exit 1
+    ;;
+esac
 
 case "$1" in
   cleanup)

@@ -1,6 +1,7 @@
 //! MIT management adapter. The separately built GPL engine owns its implementation and state.
 //! This crate communicates only over the engine's documented command-line interface.
 mod process;
+pub use process::request;
 
 use anyhow::{Result, bail};
 use clap::{Args, Subcommand};

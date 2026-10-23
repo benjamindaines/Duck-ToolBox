@@ -95,5 +95,11 @@
     "wildcard": "不支持此通配符写法：仅实现开头 * 的后缀匹配。",
     "canary": "Canary 保留上游经验规则：Pixel 10a 使用 API 35（上游注释实际为 36），未知机型使用 37，board API 使用 32。六周失效日期及补丁回退值均为估计，不代表 Google 接受或证书有效期。"
   },
-  "strongHelp": "为候选设置 spoofProvider=0；保留一致的 Build／属性补丁值，不保证完整性判定结果。"
+  "strongHelp": "为候选设置 spoofProvider=0；保留一致的 Build／属性补丁值，不保证完整性判定结果。",
+  "recoveryTitle": "配置更新中断",
+  "recoveryHelp": "更新未完成。请查看事务记录路径，并确认恢复保存的配置。恢复完成前无法继续应用。",
+  "recover": "确认恢复",
+  "recovered": "已恢复原配置。",
+  "replaceHelp": "仅允许 system、product、system_ext、vendor、odm、oem 分区的 app、priv-app 或 overlay 下的单个条目。通配符仅限应用名称；拒绝根目录、父目录及 overlay/config。",
+  "activationHelp": "完整模式须先应用非空配置才修改全局环境。明确保存 scripts-only 模式后，无指纹也可运行兼容脚本。"
 }

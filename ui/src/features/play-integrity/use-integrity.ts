@@ -22,6 +22,11 @@ export function useIntegrity() {
     staleTime: Infinity,
     refetchOnWindowFocus: false,
   })
+  const transaction = useQuery({
+    queryKey: ["integrity-transaction.status"],
+    queryFn: integrityApi.transactionStatus,
+    refetchOnWindowFocus: true,
+  })
   const content = ref("")
   const preview = ref<Preview | null>(null)
   const patches = ref<
@@ -72,6 +77,7 @@ export function useIntegrity() {
   }
   async function refresh() {
     await Promise.all([
+      client.invalidateQueries({ queryKey: ["integrity-transaction.status"] }),
       client.invalidateQueries({ queryKey: ["play-integrity.status"] }),
       client.invalidateQueries({ queryKey: ["play-integrity.config"] }),
     ])
@@ -89,32 +95,23 @@ export function useIntegrity() {
   async function apply() {
     const candidate = preview.value
     if (!candidate) return
-    const applied = await integrityApi.apply(candidate)
-    backup.value = applied.backup
-    const updated: { target: SecurityPatchTarget; backup: string }[] = []
+    const selected = patches.value.filter((item) => item.selected)
+    if (selected.length > 1) throw new Error("Only one active keystore participant is supported")
+    const patch = selected[0]
     try {
-      for (const patch of patches.value.filter((item) => item.selected)) {
-        const result = await patch.target.apply(patch.preview)
-        updated.push({ target: patch.target, backup: result.backup })
-      }
-    } catch (error) {
-      const failures: string[] = []
-      for (const entry of updated.reverse()) {
-        try {
-          await entry.target.restore(entry.backup)
-        } catch (recovery) {
-          failures.push(`${entry.target.id}: ${String(recovery)}; backup=${entry.backup}`)
-        }
-      }
-      try {
-        await integrityApi.restore(applied.backup)
-        backup.value = ""
-      } catch (recovery) {
-        failures.push(`Play Integrity: ${String(recovery)}; backup=${applied.backup}`)
-      }
+      const applied = await integrityApi.applyTransaction(
+        candidate,
+        patch
+          ? {
+              target: patch.target.id,
+              patch: patch.preview.patch,
+              revision: patch.preview.revision,
+            }
+          : undefined,
+      )
+      backup.value = applied.backup
+    } finally {
       await refresh()
-      if (failures.length) throw new Error(`${String(error)}; ${failures.join("; ")}`)
-      throw error
     }
     preview.value = null
     await refresh()
@@ -143,6 +140,7 @@ export function useIntegrity() {
   return {
     t,
     status,
+    transaction,
     config,
     content,
     preview,

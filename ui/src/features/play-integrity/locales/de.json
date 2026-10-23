@@ -95,5 +95,11 @@
     "wildcard": "Nicht unterstütztes Muster: Nur ein führendes * für Suffixabgleich ist implementiert.",
     "canary": "Canary behält Upstream-Heuristiken: Pixel 10a nutzt API 35 (laut Hinweis tatsächlich 36), unbekannte Geräte 37, board API 32. Sechs Wochen und Ersatz-Patchwerte sind Schätzungen, keine Google-Zusage oder Zertifikatsgültigkeit."
   },
-  "strongHelp": "Setzt spoofProvider=0 für diesen Kandidaten. Build- und Eigenschafts-Patchwerte bleiben gleich; kein Urteil wird garantiert."
+  "strongHelp": "Setzt spoofProvider=0 für diesen Kandidaten. Build- und Eigenschafts-Patchwerte bleiben gleich; kein Urteil wird garantiert.",
+  "recoveryTitle": "Konfigurationsänderung unterbrochen",
+  "recoveryHelp": "Die Änderung wurde nicht abgeschlossen. Prüfe den Protokollpfad und bestätige die Wiederherstellung. Bis dahin sind weitere Anwendungen gesperrt.",
+  "recover": "Wiederherstellung bestätigen",
+  "recovered": "Vorherige Konfigurationen wiederhergestellt.",
+  "replaceHelp": "Nur einzelne Einträge unter app, priv-app oder overlay in system, product, system_ext, vendor, odm oder oem sind erlaubt. Platzhalter nur in App-Namen; Wurzeln, Elternpfade und overlay/config sind gesperrt.",
+  "activationHelp": "Der vollständige Modus ändert die globale Umgebung erst nach Anwendung einer nicht leeren Konfiguration. Explizit gespeicherter scripts-only-Modus führt Kompatibilitätsskripte ohne Fingerabdruck aus."
 }

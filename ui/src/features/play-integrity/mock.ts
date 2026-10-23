@@ -8,6 +8,7 @@ let revision = "initial"
 let previous = ""
 let count = 0
 let cancelled = false
+let interrupted = new URLSearchParams(location.search).get("interrupted-transaction") === "1"
 const options: Options = {
   enabled: true,
   mode: "full",
@@ -52,6 +53,26 @@ function preview(value: string) {
 const mock: MockModule = {
   feature: { id: "play-integrity", contract: 1 },
   handlers: {
+    "integrity-transaction.status": () => ({
+      pending: interrupted,
+      journal_path: "/data/adb/duck-toolbox/var/integrity-transaction/journal.json",
+      journal: null,
+    }),
+    "integrity-transaction.recover": () => {
+      interrupted = false
+      return { restored: true, restart_required: true }
+    },
+    "integrity-transaction.apply": (args, flags, input) => {
+      if (interrupted)
+        throw new MockFailure("internal_error", "Interrupted transaction requires recovery")
+      const request = input as { engine: unknown; patch?: unknown }
+      const result = mock.handlers["play-integrity.apply"]!(args, flags, request.engine)
+      if (request.patch && new URLSearchParams(location.search).get("patch-fail") === "1") {
+        mock.handlers["play-integrity.restore"]!(args, flags, {})
+        throw new MockFailure("backend_rule", "Patch fixture rejected")
+      }
+      return result
+    },
     "play-integrity.status": () => ({
       upstream_revision: "23ec56c2440c4fd1a5e893a23ef7861d6366a828",
       options: { ...options },

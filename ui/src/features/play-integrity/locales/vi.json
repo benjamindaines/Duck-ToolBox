@@ -95,5 +95,11 @@
     "wildcard": "Mẫu không hỗ trợ: chỉ triển khai * ở đầu để khớp hậu tố.",
     "canary": "Canary giữ kinh nghiệm thượng nguồn: Pixel 10a dùng API 35 (ghi chú thực tế 36), máy chưa biết dùng 37, board API 32. Sáu tuần và mức vá dự phòng là ước tính, không phải sự chấp nhận của Google hay hạn chứng chỉ."
   },
-  "strongHelp": "Đặt spoofProvider=0 cho ứng viên. Giữ mức vá Build và thuộc tính nhất quán; không bảo đảm kết quả."
+  "strongHelp": "Đặt spoofProvider=0 cho ứng viên. Giữ mức vá Build và thuộc tính nhất quán; không bảo đảm kết quả.",
+  "recoveryTitle": "Cập nhật cấu hình bị gián đoạn",
+  "recoveryHelp": "Cập nhật chưa hoàn tất. Kiểm tra đường dẫn nhật ký rồi xác nhận khôi phục cấu hình đã lưu. Chặn áp dụng mới cho đến khi khôi phục xong.",
+  "recover": "Xác nhận khôi phục",
+  "recovered": "Đã khôi phục cấu hình trước.",
+  "replaceHelp": "Chỉ cho phép từng mục trong app, priv-app hoặc overlay của system, product, system_ext, vendor, odm hoặc oem. Ký tự đại diện chỉ dùng trong tên ứng dụng; từ chối thư mục gốc, đường dẫn cha và overlay/config.",
+  "activationHelp": "Chế độ đầy đủ chỉ đổi môi trường toàn cục sau khi áp dụng cấu hình không rỗng. Lưu rõ chế độ scripts-only cho phép chạy tập lệnh tương thích không cần dấu vân tay."
 }

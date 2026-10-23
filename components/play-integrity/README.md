@@ -22,7 +22,11 @@ PIF_ENGINE_DATA and PIF_ENGINE_SYSROOT; all must be absolute paths.
 Call `pif-engine stage setup`, `stage early`, `stage late` and `stage uninstall`
 from the corresponding root-manager lifecycle. The late stage must run after
 boot completion. No network request occurs at boot. Enabling is the default;
-an absent configuration causes injection to remain idle.
+an absent or empty configuration keeps full-mode injection and global compatibility
+scripts idle. Explicitly saving `mode=scripts-only` permits compatibility scripts
+without a fingerprint. Enabling without a configuration also reserves the
+sensitive-property handler, so the legacy handler does not apply overlapping
+properties instead; the independent boot-hash setting retains its existing behavior.
 
 ## Public process interface (version 1)
 
@@ -36,7 +40,8 @@ to the other and is usable from an ordinary root shell.
 | status | Options, prerequisites, conflicts, boot evidence and reboot requirement |
 | config | Canonical prop/JSON content, entries and revision |
 | preview | content, format (auto/prop/json), optional migrate/advanced/force; returns changes and base revision |
-| apply | Preview content plus revision; atomic publication and backup token |
+| prepare | Preview content plus revision; durably saves a backup token before publication |
+| apply | Preview content plus revision and optional prepared backup token; atomic publication and backup token |
 | restore | backup token; refuses to overwrite a newer configuration |
 | options | enabled, mode (full/scripts-only), skipdelprop, skippersistprop, skipmatchdevice, app_replace_list |
 | task-start | strong (default true), match_device, optional timeout_seconds (1–120, default 120); starts fingerprint generation |
@@ -52,7 +57,11 @@ is upstream's heuristic, not proof of continued server acceptance.
 
 An enabled conflicting PIF/USNF module prevents this engine from injecting or
 running its property scripts. The engine does not uninstall other modules.
-ROM replacement paths require reboot. Existing prop-handler and boot-hash
+ROM replacement paths require reboot. Only a single application/overlay entry under
+`/{system,product,system_ext,vendor,odm,oem}/{app,priv-app,overlay}/NAME` is accepted.
+Wildcards are permitted only in application names; overlay wildcards and the
+`overlay/config` directory are rejected. The CLI and boot scripts both validate
+the list, including expanded names, before creating any overlay artifacts. Existing prop-handler and boot-hash
 settings are respected by lifecycle integration. Changes to global properties
 cannot be undone merely by unloading code from an already running process.
 

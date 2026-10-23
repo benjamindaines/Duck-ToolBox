@@ -11,7 +11,8 @@ changed, removed or added on its own.
 - **Play Integrity**: an independently built GPLv3 engine derived from Play Integrity Fork,
   with configuration previews, migration, fingerprint generation, compatibility settings and
   diagnostics in the WebUI. It is enabled by default; injection requires Zygisk and a saved
-  configuration. The management code remains MIT; see [licensing boundaries](THIRD_PARTY_NOTICES.md).
+  nonempty configuration. Full-mode global scripts also wait for configuration; explicitly
+  selected scripts-only mode can run without a fingerprint. The management code remains MIT; see [licensing boundaries](THIRD_PARTY_NOTICES.md).
 
 - **Tricky Store manager**: a complete port of KOWX712's
   [Tricky Addon: Update Target List](https://github.com/KOWX712/Tricky-Addon-Update-Target-List),
@@ -318,6 +319,27 @@ Nightly packages use the repository's commit-count version code and `canary` suf
 The engine's source archive, dependency notices and licensing boundaries are checked
 before either package is created. See [the rule review](components/play-integrity/RULES.md)
 for the source references and required device validation.
+
+Configuration and optional keystore patch updates use the backend's
+`integrity-transaction` contract (version 1). Backups and rendered candidates are
+saved before writes; a private, synced journal records which participants may
+have started. This is recoverable coordination, not a filesystem-wide atomic
+transaction. After an interruption, the home page and Play Integrity page show
+a recovery notice and require confirmation before restoring. New applications
+are blocked until recovery completes. Normal failures trigger immediate rollback.
+The keystore adapter owns its file mappings and restart requirements, including
+when restoring a patch policy.
+
+For recovery without the WebUI, use `duckd integrity-transaction status`, then
+`duckd integrity-transaction recover --stdin-json` with `{"confirmed":true}` on
+stdin after reviewing the journal. The journal lives under the toolbox data
+root at `var/integrity-transaction/journal.json`; participant backup tokens are
+retained there. Recovery accepts each prepared keystore file only if it matches
+its original or proposed content, so partial publication can be reversed.
+Unrelated edits cause refusal and leave the journal and backups available for
+manual inspection. Do not delete these files to dismiss an unresolved update.
+Filesystem durability still depends on the device and its storage implementation;
+real power-loss and root-manager behavior need device validation.
 
 **On a real KernelSU.** `scripts/device-test.sh <module zip>` prepares a disposable
 userdebug emulator (or any device with root adbd) and runs `ui/e2e-device` there:

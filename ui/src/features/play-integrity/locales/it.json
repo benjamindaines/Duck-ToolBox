@@ -95,5 +95,11 @@
     "wildcard": "Wildcard non supportato: è implementato solo * iniziale per il suffisso.",
     "canary": "Canary mantiene le euristiche originali: Pixel 10a usa API 35 (nota: reale 36), dispositivi sconosciuti 37, board API 32. Le sei settimane e il livello patch alternativo sono stime, non accettazione Google né validità dei certificati."
   },
-  "strongHelp": "Imposta spoofProvider=0 per il candidato. I valori patch Build e proprietà restano coerenti; nessun esito è garantito."
+  "strongHelp": "Imposta spoofProvider=0 per il candidato. I valori patch Build e proprietà restano coerenti; nessun esito è garantito.",
+  "recoveryTitle": "Aggiornamento configurazione interrotto",
+  "recoveryHelp": "Aggiornamento incompleto. Controlla il percorso del registro e conferma il ripristino. Nuove applicazioni sono bloccate fino al recupero.",
+  "recover": "Conferma ripristino",
+  "recovered": "Configurazioni precedenti ripristinate.",
+  "replaceHelp": "Sono ammesse solo singole voci in app, priv-app o overlay di system, product, system_ext, vendor, odm o oem. Jolly solo nei nomi delle app; radici, percorsi superiori e overlay/config rifiutati.",
+  "activationHelp": "La modalità completa modifica l’ambiente globale dopo aver applicato una configurazione non vuota. Salvare esplicitamente scripts-only abilita gli script di compatibilità senza impronta."
 }

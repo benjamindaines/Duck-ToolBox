@@ -69,6 +69,7 @@ pub fn run(engine: &Engine, operation: &str, input: Value) -> Result<Value> {
                 &json!({"content":content,"format":"auto","migrate":true,"advanced":true}),
             )
         }
+        "prepare" => prepare(engine, &input),
         "apply" => apply(engine, &input),
         "restore" => restore(engine, &input),
         "options" => save_options(engine, &input),
@@ -105,15 +106,34 @@ pub fn run(engine: &Engine, operation: &str, input: Value) -> Result<Value> {
         _ => bail!("unknown operation: {operation}"),
     }
 }
-fn compatibility(engine: &Engine) -> Result<Value> {
-    let list = if engine.data.join("custom.app_replace_list.txt").exists() {
-        files::read(&engine.data.join("custom.app_replace_list.txt"))?
-    } else {
-        files::read(&engine.module.join("scripts/app_replace_list.txt"))?
-    };
-    Ok(
-        json!({"replacement_hash":files::hash(list.as_bytes()),"prop_handler_enabled":!engine.device("/data/adb/disable_prop_handler").exists()}),
+fn replacement_list(engine: &Engine) -> Result<String> {
+    files::read(
+        &if engine.data.join("custom.app_replace_list.txt").exists() {
+            engine.data.join("custom.app_replace_list.txt")
+        } else {
+            engine.module.join("scripts/app_replace_list.txt")
+        },
     )
+}
+fn compatibility(engine: &Engine) -> Result<Value> {
+    Ok(
+        json!({"replacement_hash":files::hash(replacement_list(engine)?.as_bytes()),"prop_handler_enabled":!engine.device("/data/adb/disable_prop_handler").exists()}),
+    )
+}
+pub fn owns_properties(engine: &Engine) -> Result<bool> {
+    Ok(options(engine)?["enabled"] == true && conflicts(engine).is_empty())
+}
+pub fn active(engine: &Engine) -> Result<bool> {
+    let opts = options(engine)?;
+    Ok(opts["enabled"] == true
+        && conflicts(engine).is_empty()
+        && (opts["mode"] == "scripts-only" || configured(engine)?))
+}
+fn configured(engine: &Engine) -> Result<bool> {
+    let current = config::current(engine)?;
+    Ok(current["entries"]
+        .as_object()
+        .is_some_and(|m| !m.is_empty()))
 }
 pub fn status(engine: &Engine) -> Result<Value> {
     let opts = options(engine)?;
@@ -135,15 +155,32 @@ pub fn status(engine: &Engine) -> Result<Value> {
             && !path.join("disable").exists()
             && !path.join("remove").exists()
     }) || magisk_runtime;
-    let reboot = loaded["boot_id"] != boot
+    let runtime_active = active(engine)?;
+    let reboot = loaded["active"] != runtime_active
+        || loaded["boot_id"] != boot
         || loaded["options"] != opts
         || loaded["compatibility"] != compatibility(engine)?;
     Ok(
-        json!({"api":1,"upstream_revision":UPSTREAM,"options":opts,"has_config":has_config,"zygisk_detected":zygisk,
+        json!({"api":1,"upstream_revision":UPSTREAM,"options":opts,"has_config":has_config,"lifecycle_eligible":runtime_active,"zygisk_detected":zygisk,
         "conflicts":conflict,"reboot_required":reboot,"attachment":evidence,"boot":loaded,
-        "state":if !opts["enabled"].as_bool().unwrap_or(true){"disabled"}else if !conflict.is_empty(){"conflict"}else if opts["mode"]=="scripts-only"{"scripts-only"}else if !zygisk{"zygisk-unconfirmed"}else if !has_config{"configuration-required"}else{"configured"},
+        "state":if !opts["enabled"].as_bool().unwrap_or(true){"disabled"}else if !conflict.is_empty(){"conflict"}else if opts["mode"]=="scripts-only"{"scripts-only"}else if !has_config{"configuration-required"}else if !zygisk{"zygisk-unconfirmed"}else{"configured"},
         "app_replace_list":if engine.data.join("custom.app_replace_list.txt").exists(){files::read(&engine.data.join("custom.app_replace_list.txt"))?}else{files::read(&engine.module.join("scripts/app_replace_list.txt"))?},"data_dir":engine.data,"source":"webroot/licenses/play-integrity-source.tar.gz","license":"licenses/play-integrity/GPL-3.0.txt","verdict_verified":false}),
     )
+}
+fn prepare(engine: &Engine, input: &Value) -> Result<Value> {
+    let _lock = files::Lock::acquire(&engine.data)?;
+    let preview = config::preview(engine, input)?;
+    if input["revision"] != preview["revision"] {
+        bail!("configuration changed; preview again");
+    }
+    let old = files::read(&engine.data.join("custom.pif.json"))?;
+    let new = text(&preview, "json")?;
+    let token = files::hash(format!("{old}\0{new}").as_bytes());
+    files::write_json(
+        &engine.data.join("backups").join(format!("{token}.json")),
+        &json!({"content":old,"applied_hash":files::hash(new.as_bytes())}),
+    )?;
+    Ok(json!({"backup":token}))
 }
 fn apply(engine: &Engine, input: &Value) -> Result<Value> {
     let _lock = files::Lock::acquire(&engine.data)?;
@@ -155,6 +192,9 @@ fn apply(engine: &Engine, input: &Value) -> Result<Value> {
     let old = files::read(&path)?;
     let new = text(&preview, "json")?;
     let token = files::hash(format!("{old}\0{new}").as_bytes());
+    if input.get("backup").is_some_and(|backup| backup != &token) {
+        bail!("prepared configuration changed; preview again");
+    }
     let backup = engine.data.join("backups").join(format!("{token}.json"));
     files::write_json(
         &backup,
@@ -187,7 +227,10 @@ fn restore(engine: &Engine, input: &Value) -> Result<Value> {
     let backup = engine.data.join("backups").join(format!("{token}.json"));
     let saved = files::json_file(&backup)?;
     let path = engine.data.join("custom.pif.json");
-    if saved["applied_hash"] != files::hash(files::read(&path)?.as_bytes()) {
+    let current = files::read(&path)?;
+    if current != text(&saved, "content")?
+        && saved["applied_hash"] != files::hash(current.as_bytes())
+    {
         bail!("configuration changed after apply; restore refused");
     }
     files::atomic(&path, text(&saved, "content")?.as_bytes()).map_err(|e| {
@@ -221,19 +264,7 @@ fn save_options(engine: &Engine, input: &Value) -> Result<Value> {
         let list = list
             .as_str()
             .ok_or_else(|| anyhow::anyhow!("app_replace_list must be text"))?;
-        for line in list
-            .lines()
-            .map(str::trim)
-            .filter(|s| !s.is_empty() && !s.starts_with('#'))
-        {
-            if !line.starts_with('/')
-                || line.contains("..")
-                || line.contains(char::is_whitespace)
-                || line.contains(['\0', ';', '`', '$', '\\'])
-            {
-                bail!("invalid ROM replacement path: {line}");
-            }
-        }
+        crate::paths::validate_list(list)?;
         files::atomic(
             &engine.data.join("custom.app_replace_list.txt"),
             list.as_bytes(),
@@ -258,7 +289,7 @@ pub fn stage(engine: &Engine, phase: &str) -> Result<Value> {
         bail!("invalid lifecycle phase");
     }
     let opts = options(engine)?;
-    let active = opts["enabled"].as_bool().unwrap_or(true) && conflicts(engine).is_empty();
+    let active = active(engine)?;
     let script_phase = if phase == "early" && !active {
         "cleanup"
     } else {
@@ -266,6 +297,9 @@ pub fn stage(engine: &Engine, phase: &str) -> Result<Value> {
     };
     if phase != "early" && phase != "uninstall" && !active {
         return Ok(json!({"skipped":true}));
+    }
+    if active && opts["mode"] == "full" && ["setup", "early"].contains(&phase) {
+        crate::paths::validate_list(&replacement_list(engine)?)?;
     }
     if phase == "uninstall" {
         let job = files::json_file(&engine.data.join("active-job.json"))?;
@@ -320,7 +354,7 @@ pub fn stage(engine: &Engine, phase: &str) -> Result<Value> {
     if phase == "early" {
         files::write_json(
             &engine.data.join("boot.json"),
-            &json!({"boot_id":files::read(&engine.device("/proc/sys/kernel/random/boot_id"))?.trim(),"options":opts,"compatibility":compatibility(engine)?,"zygisk_enabled":std::env::var("ZYGISK_ENABLED").as_deref()==Ok("1")}),
+            &json!({"boot_id":files::read(&engine.device("/proc/sys/kernel/random/boot_id"))?.trim(),"options":opts,"active":active,"compatibility":compatibility(engine)?,"zygisk_enabled":std::env::var("ZYGISK_ENABLED").as_deref()==Ok("1")}),
         )?;
     }
     Ok(json!({"stage":phase,"output":String::from_utf8_lossy(&output.stdout)}))
@@ -329,6 +363,52 @@ pub fn stage(engine: &Engine, phase: &str) -> Result<Value> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn lifecycle_requires_config_but_preserves_explicit_scripts_mode() {
+        let root = tempfile::tempdir().unwrap();
+        let e = Engine {
+            data: root.path().join("data"),
+            module: root.path().join("module"),
+            sysroot: root.path().join("sys"),
+        };
+        fs::create_dir_all(e.module.join("scripts")).unwrap();
+        fs::write(e.module.join("scripts/stage.sh"), "printf '%s' \"$1\"\n").unwrap();
+        assert_eq!(stage(&e, "early").unwrap()["output"], "cleanup");
+        assert!(!active(&e).unwrap());
+        assert!(owns_properties(&e).unwrap());
+        assert_eq!(stage(&e, "setup").unwrap()["skipped"], true);
+        assert_eq!(stage(&e, "late").unwrap()["skipped"], true);
+        let mut input = json!({"content":"MODEL=A","format":"prop"});
+        input["revision"] = config::preview(&e, &input).unwrap()["revision"].clone();
+        apply(&e, &input).unwrap();
+        assert!(active(&e).unwrap());
+        fs::remove_file(e.data.join("custom.pif.json")).unwrap();
+        save_options(&e, &json!({"mode":"scripts-only"})).unwrap();
+        assert!(active(&e).unwrap());
+        save_options(&e, &json!({"enabled":false})).unwrap();
+        assert!(!active(&e).unwrap());
+        assert!(!owns_properties(&e).unwrap());
+        assert!(save_options(&e, &json!({"app_replace_list":"/system/"})).is_err());
+    }
+    #[test]
+    fn prepared_backup_is_guarded_and_recovery_is_repeatable() {
+        let root = tempfile::tempdir().unwrap();
+        let e = Engine {
+            data: root.path().join("data"),
+            module: root.path().join("module"),
+            sysroot: root.path().join("sys"),
+        };
+        let mut input = json!({"content":"MODEL=A","format":"prop"});
+        input["revision"] = config::preview(&e, &input).unwrap()["revision"].clone();
+        let saved = prepare(&e, &input).unwrap();
+        input["backup"] = json!("wrong");
+        assert!(apply(&e, &input).is_err());
+        assert_eq!(config::current(&e).unwrap()["entries"], json!({}));
+        input["backup"] = saved["backup"].clone();
+        apply(&e, &input).unwrap();
+        restore(&e, &saved).unwrap();
+        restore(&e, &saved).unwrap();
+    }
     #[test]
     fn preview_apply_stale_revision_and_restore() {
         let root = tempfile::tempdir().unwrap();

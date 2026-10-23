@@ -21,6 +21,7 @@ import QueryState from "@/core/components/QueryState.vue"
 import SectionCard from "@/core/components/SectionCard.vue"
 import { useCopy } from "@/core/links"
 import { notifyError } from "@/core/notify"
+import RecoveryNotice from "../components/RecoveryNotice.vue"
 import ConfigFields from "../components/ConfigFields.vue"
 import { integrityApi } from "../api"
 import ConfigPreview from "../components/ConfigPreview.vue"
@@ -116,6 +117,7 @@ async function importFile(event: Event) {
       >
     </nav>
     <fieldset :disabled="s.busy.value" class="flex min-w-0 flex-1 flex-col gap-6 p-4">
+      <RecoveryNotice />
       <QueryState
         :loading="s.status.isPending.value"
         :error="s.status.error.value"
@@ -134,6 +136,7 @@ async function importFile(event: Event) {
                 : "—"
             }}
           </p>
+          <p class="text-muted-foreground mt-2 text-sm">{{ t("activationHelp") }}</p>
           <p v-if="data?.reboot_required" class="mt-2 text-sm">{{ t("reboot") }}</p>
           <p v-if="data?.conflicts.length" class="text-destructive mt-2 text-sm">
             {{ data.conflicts.join(", ") }}
@@ -308,6 +311,7 @@ async function importFile(event: Event) {
             <p class="text-muted-foreground text-sm">{{ t("denylistHelp") }}</p>
             <p class="text-muted-foreground text-sm">{{ t("selinuxHelp") }}</p>
           </div>
+          <p class="text-muted-foreground mt-3 text-sm">{{ t("replaceHelp") }}</p>
           <label class="mt-3 block text-sm"
             >{{ t("replaceList")
             }}<Textarea
@@ -348,7 +352,12 @@ async function importFile(event: Event) {
         v-if="s.preview.value"
         :preview="s.preview.value"
         :patches="s.patches.value"
-        :busy="s.busy.value"
+        :busy="
+          s.busy.value ||
+          s.transaction.isPending.value ||
+          !!s.transaction.error.value ||
+          !!s.transaction.data.value?.pending
+        "
         @apply="s.action(s.apply)"
         @select="
           (id, selected) => {

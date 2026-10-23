@@ -95,5 +95,11 @@
     "wildcard": "Patrón no compatible: solo se implementa * inicial para sufijos.",
     "canary": "Canary conserva heurísticas originales: Pixel 10a usa API 35 (nota: real 36), dispositivos desconocidos 37, board API 32. Las seis semanas y el parche alternativo son estimaciones, no aceptación de Google ni vigencia de certificados."
   },
-  "strongHelp": "Establece spoofProvider=0 para el candidato. Conserva valores de parche coherentes entre Build y propiedad; no garantiza resultados."
+  "strongHelp": "Establece spoofProvider=0 para el candidato. Conserva valores de parche coherentes entre Build y propiedad; no garantiza resultados.",
+  "recoveryTitle": "Actualización de configuración interrumpida",
+  "recoveryHelp": "La actualización no terminó. Revisa la ruta del registro y confirma la restauración. Se bloquean nuevas aplicaciones hasta completar la recuperación.",
+  "recover": "Confirmar restauración",
+  "recovered": "Configuraciones anteriores restauradas.",
+  "replaceHelp": "Solo se permiten entradas individuales de app, priv-app u overlay en system, product, system_ext, vendor, odm u oem. Comodines solo en nombres de apps; se rechazan raíces, rutas superiores y overlay/config.",
+  "activationHelp": "El modo completo cambia el entorno global después de aplicar una configuración no vacía. Guardar explícitamente scripts-only permite ejecutar scripts de compatibilidad sin huella."
 }

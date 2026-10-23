@@ -95,5 +95,11 @@
     "wildcard": "非対応のワイルドカードです。先頭 * による後方一致のみ実装しています。",
     "canary": "Canary は上流の経験則を維持します。Pixel 10a は API 35（注記は実際 36）、未知の端末は 37、board API は 32。6週間の失効日とパッチ代替値は推定であり、Google の承認や証明書の有効期間ではありません。"
   },
-  "strongHelp": "候補に spoofProvider=0 を設定します。Build とプロパティのパッチ値は対応させます。判定結果は保証されません。"
+  "strongHelp": "候補に spoofProvider=0 を設定します。Build とプロパティのパッチ値は対応させます。判定結果は保証されません。",
+  "recoveryTitle": "設定更新が中断されました",
+  "recoveryHelp": "更新が完了していません。記録のパスを確認し、保存した設定の復元を承認してください。復元が終わるまで適用できません。",
+  "recover": "復元を確認",
+  "recovered": "元の設定を復元しました。",
+  "replaceHelp": "system、product、system_ext、vendor、odm、oem の app、priv-app、overlay 内の個別項目のみ許可します。ワイルドカードはアプリ名のみ。ルート、親パス、overlay/config は拒否します。",
+  "activationHelp": "完全モードは空でない設定の適用後にグローバル環境を変更します。scripts-only を明示的に保存すると、指紋なしで互換スクリプトを実行します。"
 }

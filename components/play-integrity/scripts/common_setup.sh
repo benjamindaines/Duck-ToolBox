@@ -8,6 +8,8 @@ MAGISK_WHITEOUT=false
 
 LIST=$PIF_ENGINE_SCRIPTS/app_replace_list.txt
 [ -f "$PIF_ENGINE_DATA/custom.app_replace_list.txt" ] && LIST=$PIF_ENGINE_DATA/custom.app_replace_list.txt
+. "$PIF_ENGINE_SCRIPTS/path_rules.sh"
+pif_validate_list "$LIST" || exit 1
 for APP in $(grep -v '^[[:space:]]*#' "$LIST"); do
     if [ -e "$APP" ]; then
         PREFIX=""

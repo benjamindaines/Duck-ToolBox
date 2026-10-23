@@ -95,5 +95,11 @@
     "wildcard": "不支援此萬用字元寫法：僅實作開頭 * 的後綴比對。",
     "canary": "Canary 保留上游經驗規則：Pixel 10a 使用 API 35（上游註解實際為 36），未知機型使用 37，board API 使用 32。六週失效日期及修補程式回退值皆為估計，不代表 Google 接受或憑證效期。"
   },
-  "strongHelp": "為候選設定 spoofProvider=0；保留一致的 Build／屬性修補程式值，不保證完整性判定結果。"
+  "strongHelp": "為候選設定 spoofProvider=0；保留一致的 Build／屬性修補程式值，不保證完整性判定結果。",
+  "recoveryTitle": "設定更新中斷",
+  "recoveryHelp": "更新尚未完成。請查看交易記錄路徑，並確認還原已儲存的設定。完成還原前無法繼續套用。",
+  "recover": "確認還原",
+  "recovered": "已還原原設定。",
+  "replaceHelp": "僅允許 system、product、system_ext、vendor、odm、oem 分割區的 app、priv-app 或 overlay 下的單一項目。萬用字元僅限應用名稱；拒絕根目錄、父目錄及 overlay/config。",
+  "activationHelp": "完整模式須先套用非空設定才修改全域環境。明確儲存 scripts-only 模式後，沒有指紋也可執行相容性指令碼。"
 }

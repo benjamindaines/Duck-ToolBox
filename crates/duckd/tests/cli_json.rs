@@ -230,6 +230,7 @@ fn features_manifest_lists_every_registered_tool() {
     assert_eq!(
         ids,
         [
+            "integrity-transaction",
             "rkp",
             "rkp-device",
             "tee-attestation",

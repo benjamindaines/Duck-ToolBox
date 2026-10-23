@@ -95,5 +95,11 @@
     "wildcard": "Pola tidak didukung: hanya * awal untuk akhiran yang diterapkan.",
     "canary": "Canary mempertahankan heuristik hulu: Pixel 10a memakai API 35 (catatan: aktual 36), perangkat tidak dikenal 37, board API 32. Enam minggu dan patch cadangan adalah perkiraan, bukan penerimaan Google atau masa berlaku sertifikat."
   },
-  "strongHelp": "Mengatur spoofProvider=0 untuk kandidat ini. Nilai patch Build dan properti tetap selaras; hasil tidak dijamin."
+  "strongHelp": "Mengatur spoofProvider=0 untuk kandidat ini. Nilai patch Build dan properti tetap selaras; hasil tidak dijamin.",
+  "recoveryTitle": "Pembaruan konfigurasi terhenti",
+  "recoveryHelp": "Pembaruan belum selesai. Periksa jalur jurnal lalu konfirmasikan pemulihan konfigurasi tersimpan. Penerapan baru diblokir hingga pemulihan selesai.",
+  "recover": "Konfirmasi pemulihan",
+  "recovered": "Konfigurasi sebelumnya dipulihkan.",
+  "replaceHelp": "Hanya entri individual di app, priv-app atau overlay pada system, product, system_ext, vendor, odm atau oem yang diizinkan. Wildcard hanya pada nama aplikasi; akar, jalur induk dan overlay/config ditolak.",
+  "activationHelp": "Mode penuh mengubah lingkungan global setelah konfigurasi tidak kosong diterapkan. Menyimpan scripts-only secara eksplisit mengaktifkan skrip kompatibilitas tanpa sidik jari."
 }
