@@ -13,7 +13,7 @@ export default defineFeature({
     path: section,
     component: () => import("./pages/IntegrityPage.vue"),
     props: { section: section || "status" },
-    meta: { titleKey: `playIntegrity.nav.${section || "status"}` },
+    meta: { titleKey: `playIntegrity.nav.${section || "status"}`, backTo: "/" },
   })),
   messages: localeFiles(import.meta.glob("./locales/*.json")),
 })
