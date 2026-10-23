@@ -9,6 +9,8 @@ import SectionCard from "@/core/components/SectionCard.vue"
 import { notifyError, notifySuccess } from "@/core/notify"
 import { integrityApi } from "../api"
 import { useIntegrityI18n } from "../i18n"
+
+defineProps<{ stopOnly?: boolean }>()
 const { t } = useIntegrityI18n()
 const client = useQueryClient()
 const power = useQuery({
@@ -61,7 +63,25 @@ async function toggle(enabled: boolean) {
 }
 </script>
 <template>
-  <section>
+  <!-- Keep the independent emergency stop available even when the config/status queries fail. -->
+  <section v-if="stopOnly" class="flex flex-col items-start">
+    <Button variant="outline" :disabled="stopping" @click="stop">
+      <Power />{{ t(power.data.value?.cleanup_pending ? "retryCleanup" : "disableNow") }}
+    </Button>
+    <p v-if="power.data.value?.enabled === false" class="text-muted-foreground mt-2 text-xs">
+      {{ t("disabledHelp") }}
+    </p>
+    <p v-if="power.data.value?.cleanup_pending" role="alert" class="text-destructive mt-2 text-sm">
+      {{ t("cleanupPending") }}
+    </p>
+    <p v-if="power.error.value" role="alert" class="text-destructive mt-2 text-sm">
+      {{ String(power.error.value) }}
+    </p>
+    <p v-for="issue in power.data.value?.issues ?? []" :key="issue.step" class="mt-2 text-xs break-words">
+      {{ issue.step }}: {{ issue.message }}
+    </p>
+  </section>
+  <section v-else>
     <SectionCard :title="t('enabled')" :description="t('powerHelp')">
       <Field orientation="horizontal">
         <FieldContent
