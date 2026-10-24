@@ -26,6 +26,7 @@ Android 13 及以上的 Basic 要求证明的 root of trust 由 Google 提供；
 | 能力 | 规则与处理 |
 | --- | --- |
 | Build 与系统属性 | 分别配置，分别生效；对显式不一致的对应字段给出预览提示，保持用户值。迁移只补缺失的对应属性，不覆盖现有值。 |
+| Build 值类型 | 按实际反射字段处理 String、int、long 和 boolean；JSON 布尔规范化后的 1／0 与文本 true／false 均可用于布尔字段。非法类型或数值只跳过对应字段并记录日志，不把无法识别的布尔值静默转为 false。 |
 | 首发 SDK 与 board API | 普通配置和迁移不注入 25／32；可以通过字段编辑器或原文设置，缺少时提示。保留已有值。首发 API 与当前系统 SDK 含义不同；不能用首发 SDK 直接推断服务端采用哪一组 Android 版本条件。 |
 | Provider | 新配置及显式迁移缺省写入 `spoofProvider=0`，不覆盖已有开关。历史配置没有该字段时保留原生兼容默认 1；界面可显式选择。此 hook 阻止 DroidGuard 读取证书链，不代表生成或增强硬件证明。 |
 | 签名 | `spoofSignature` 默认关闭；仅改变进程内包信息，不能改变服务端应用许可或签名认证。 |
@@ -64,8 +65,10 @@ Android 13 及以上的 Basic 要求证明的 root of trust 由 Google 提供；
 ## 可复现验证与限制
 
 独立 Rust 测试覆盖未知字段、API 值保留、Provider 默认值、只读规则诊断、shell 元字符迁移、Zygisk 误判、超时与取消。
-`python3 scripts/test-play-integrity-scripts.py` 使用隔离命令替身验证持久属性恢复、DenyList 模式及 OEM 前后阶段；
+生成进程独立持有子孙进程组；取消、超时、输出超限、异常及正常完成后均终止残留进程，候选配置不会自动发布。
+`python3 scripts/test-play-integrity-scripts.py` 使用隔离命令替身验证持久属性恢复、停用标记及 OEM 前后阶段；DenyList 模式与条件恢复由独立 Rust CLI 测试覆盖。
 `python3 scripts/test-play-integrity-native.py` 检查原生配置及 companion 边界。
+`python3 scripts/test-play-integrity-java.py` 在主机 JVM 验证实际 Build 值转换，包括规范化布尔值、数值边界和非法值。
 WebUI 的真实后端契约与浏览器流程覆盖预览、字段编辑、导入、应用失败恢复与多语言。
 
 这些检查不验证 Google 服务端判定。当前没有连接设备；Zygisk 注入、属性 hook 覆盖、OEM 启动、

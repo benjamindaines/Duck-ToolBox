@@ -87,10 +87,11 @@ jobs:
           cargo fmt --manifest-path components/play-integrity/Cargo.toml --all --check
           cargo clippy --locked --manifest-path components/play-integrity/Cargo.toml --target-dir target/pif-engine --all-targets -- -D warnings
           cargo test --locked --manifest-path components/play-integrity/Cargo.toml --target-dir target/pif-engine
-      - name: Native parser and companion tests
+      - name: Native parser, companion and Java value tests
         run: |
           python3 scripts/build-play-integrity.py --dependencies-only
           python3 scripts/test-play-integrity-native.py
+          python3 scripts/test-play-integrity-java.py
           python3 scripts/test-play-integrity-scripts.py
       - name: Engine scripts
         run: shellcheck -s bash --severity=error components/play-integrity/scripts/*.sh

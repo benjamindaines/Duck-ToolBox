@@ -310,6 +310,7 @@ Tools 37 and NDK 30.0.16248370. Build it independently and validate both release
 python3 scripts/build-play-integrity.py
 cargo test --locked --manifest-path components/play-integrity/Cargo.toml
 python3 scripts/test-play-integrity-native.py
+python3 scripts/test-play-integrity-java.py
 python3 scripts/test-play-integrity-scripts.py
 python3 scripts/package-module.py --channel stable
 python3 scripts/package-module.py --channel nightly

@@ -1,7 +1,7 @@
 /* Derived from Play Integrity Fork, osm0sis, chiteroman and contributors.
  * Source: https://github.com/osm0sis/PlayIntegrityFork/tree/23ec56c2440c4fd1a5e893a23ef7861d6366a828
  * SPDX-License-Identifier: GPL-3.0-only
- * Modified 2026-10-23: independent engine packaging, bounded configuration and runtime operations.
+ * Modified 2026-10-24: independent engine packaging, bounded operations and typed Build values.
  */
 package es.chiteroman.playintegrityfix;
 
@@ -237,18 +237,7 @@ public final class EntryPoint {
             return;
         }
         Class<?> fieldType = field.getType();
-        if (fieldType == String.class) {
-            newValue = value;
-        } else if (fieldType == int.class) {
-            newValue = Integer.parseInt(value);
-        } else if (fieldType == long.class) {
-            newValue = Long.parseLong(value);
-        } else if (fieldType == boolean.class) {
-            newValue = Boolean.parseBoolean(value);
-        } else {
-            LOG(String.format("Couldn't convert '%s' to '%s' type", value, fieldType));
-            return;
-        }
+        newValue = FieldValue.parse(fieldType, value);
         try {
             setFieldNative(field.getDeclaringClass(), field, fieldType.getName(), newValue);
         } catch (Exception e) {

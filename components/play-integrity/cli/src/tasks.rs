@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Modified 2026-10-24: isolated fingerprint jobs, bounded lifetime and cancellation.
-use crate::{Engine, config, files};
+use crate::{Engine, command::Process, config, files};
 use anyhow::{Result, bail};
 use serde_json::{Value, json};
 use std::{
@@ -185,7 +185,7 @@ pub fn work(engine: &Engine, id: &str) -> Result<Value> {
         if crate::power::disabled(engine) || dir.join("cancel").exists() {
             bail!("cancelled");
         }
-        let mut child = cmd.spawn()?;
+        let mut child = Process::spawn(&mut cmd)?;
         let seconds = input["timeout_seconds"].as_u64().unwrap_or(120);
         let deadline = Instant::now() + Duration::from_secs(seconds);
         loop {
@@ -193,17 +193,6 @@ pub fn work(engine: &Engine, id: &str) -> Result<Value> {
                 files::atomic(&dir.join("cancel"), b"")?;
             }
             if dir.join("cancel").exists() || Instant::now() >= deadline {
-                let _ = child.kill();
-                let _ = child.wait();
-                // Stop descendants in this isolated group as well. Ignore SIGTERM in the
-                // worker temporarily so it can persist the final result before exiting.
-                #[cfg(unix)]
-                unsafe {
-                    if libc::getpgrp() == std::process::id() as i32 {
-                        libc::signal(libc::SIGTERM, libc::SIG_IGN);
-                        libc::kill(-(std::process::id() as i32), libc::SIGTERM);
-                    }
-                }
                 if dir.join("cancel").exists() {
                     bail!("cancelled");
                 }
@@ -220,12 +209,11 @@ pub fn work(engine: &Engine, id: &str) -> Result<Value> {
                 .unwrap_or(0)
                 > 1024 * 1024
             {
-                let _ = child.kill();
-                let _ = child.wait();
                 bail!("generator output exceeded 1 MiB");
             }
             std::thread::sleep(Duration::from_millis(100));
         }
+        child.terminate();
         if fs::metadata(dir.join("output.log"))?.len() > 1024 * 1024 {
             bail!("generator output exceeded 1 MiB");
         }

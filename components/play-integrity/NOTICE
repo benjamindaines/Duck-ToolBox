@@ -11,6 +11,8 @@ HTTPS; lifecycle integration and non-destructive handling of conflicting modules
 The in-process injection mechanisms and compatibility rules derive from upstream.
 Rule review preserves explicit SDK choices, defaults new Provider compatibility off,
 labels Canary heuristics, removes shell evaluation and checks root-runtime evidence.
+Build value conversion preserves normalized JSON booleans; generator process groups
+are reaped on cancellation, limits, errors and normal completion.
 
 Original PIF concepts and mechanisms are credited upstream to kdrag0n's ProtonAOSP
 and Universal SafetyNet Fix. Boot scripts derive from Displax's USNF MOD fork.

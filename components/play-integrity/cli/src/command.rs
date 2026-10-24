@@ -3,9 +3,49 @@
 use anyhow::{Result, bail};
 use std::{
     io::{Read, Seek, SeekFrom},
-    process::{Command, Output, Stdio},
+    process::{Child, Command, ExitStatus, Output, Stdio},
     time::{Duration, Instant},
 };
+
+// Each local operation owns a separate group, including descendants that ignore SIGTERM.
+pub struct Process {
+    child: Child,
+    stopped: bool,
+}
+impl Process {
+    pub fn spawn(command: &mut Command) -> Result<Self> {
+        #[cfg(unix)]
+        {
+            use std::os::unix::process::CommandExt;
+            command.process_group(0);
+        }
+        Ok(Self {
+            child: command.spawn()?,
+            stopped: false,
+        })
+    }
+    pub fn try_wait(&mut self) -> std::io::Result<Option<ExitStatus>> {
+        self.child.try_wait()
+    }
+    pub fn terminate(&mut self) {
+        if self.stopped {
+            return;
+        }
+        #[cfg(unix)]
+        unsafe {
+            libc::kill(-(self.child.id() as i32), libc::SIGKILL);
+        }
+        let _ = self.child.kill();
+        let _ = self.child.wait();
+        self.stopped = true;
+    }
+}
+impl Drop for Process {
+    fn drop(&mut self) {
+        self.terminate();
+    }
+}
+
 pub fn run(command: &mut Command, timeout: Duration) -> Result<Output> {
     let mut stdout = tempfile::tempfile()?;
     let mut stderr = tempfile::tempfile()?;
@@ -13,24 +53,13 @@ pub fn run(command: &mut Command, timeout: Duration) -> Result<Output> {
         .stdin(Stdio::null())
         .stdout(stdout.try_clone()?)
         .stderr(stderr.try_clone()?);
-    #[cfg(unix)]
-    {
-        use std::os::unix::process::CommandExt;
-        command.process_group(0);
-    }
-    let mut child = command.spawn()?;
+    let mut child = Process::spawn(command)?;
     let deadline = Instant::now() + timeout;
     let status = loop {
         if stdout.metadata()?.len() > 256 * 1024
             || stderr.metadata()?.len() > 256 * 1024
             || Instant::now() >= deadline
         {
-            #[cfg(unix)]
-            unsafe {
-                libc::kill(-(child.id() as i32), libc::SIGKILL);
-            }
-            let _ = child.kill();
-            let _ = child.wait();
             bail!("platform command exceeded its time or output limit");
         }
         if let Some(status) = child.try_wait()? {
@@ -38,6 +67,7 @@ pub fn run(command: &mut Command, timeout: Duration) -> Result<Output> {
         }
         std::thread::sleep(Duration::from_millis(10));
     };
+    child.terminate();
     let read = |file: &mut std::fs::File| -> Result<Vec<u8>> {
         file.seek(SeekFrom::Start(0))?;
         let mut bytes = Vec::new();

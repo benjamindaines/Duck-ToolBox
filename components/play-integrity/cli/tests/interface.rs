@@ -88,6 +88,77 @@ fn cancellation_terminates_worker_and_preserves_live_config() {
     assert_eq!(result["data"]["state"], "cancelled", "{result}");
     assert!(!root.path().join("data/custom.pif.json").exists());
 }
+
+#[cfg(unix)]
+#[test]
+fn every_job_exit_stops_descendants_that_ignore_termination() {
+    struct Cleanup(Vec<i32>);
+    impl Drop for Cleanup {
+        fn drop(&mut self) {
+            for pid in &self.0 {
+                unsafe {
+                    libc::kill(-pid, libc::SIGKILL);
+                }
+            }
+        }
+    }
+    for scenario in ["cancel", "timeout", "overflow", "complete"] {
+        let ending = match scenario {
+            "overflow" => "head -c 1200000 /dev/zero; sleep 30",
+            "complete" => "printf 'MODEL=Fixture\\n' > custom.pif.prop",
+            _ => "sleep 30",
+        };
+        let root = fixture(&format!(
+            r#"
+echo $$ > "$PIF_ENGINE_DATA/generator.pid"
+(trap '' TERM; while :; do printf x >> "$PIF_ENGINE_DATA/heartbeat"; sleep 0.02; done) &
+while [ ! -s "$PIF_ENGINE_DATA/heartbeat" ]; do sleep 0.01; done
+{ending}
+"#
+        ));
+        let started = request(root.path(), "task-start", json!({"timeout_seconds":1}));
+        assert_eq!(started["ok"], true, "{started}");
+        let mut cleanup = Cleanup(vec![started["data"]["pid"].as_u64().unwrap() as i32]);
+        let heartbeat = root.path().join("data/heartbeat");
+        let end = Instant::now() + Duration::from_secs(5);
+        while fs::metadata(&heartbeat).is_err() {
+            assert!(Instant::now() < end, "generator did not start");
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        cleanup.0.push(
+            fs::read_to_string(root.path().join("data/generator.pid"))
+                .unwrap()
+                .trim()
+                .parse()
+                .unwrap(),
+        );
+        let id = &started["data"]["id"];
+        if scenario == "cancel" {
+            assert_eq!(
+                request(root.path(), "task-cancel", json!({"id":id}))["ok"],
+                true
+            );
+        }
+        let finished = terminal(root.path(), id);
+        let expected = match scenario {
+            "cancel" => "cancelled",
+            "complete" => "completed",
+            _ => "failed",
+        };
+        assert_eq!(
+            finished["data"]["state"], expected,
+            "{scenario}: {finished}"
+        );
+        let before = fs::metadata(&heartbeat).unwrap().len();
+        std::thread::sleep(Duration::from_millis(200));
+        assert_eq!(
+            fs::metadata(&heartbeat).unwrap().len(),
+            before,
+            "{scenario}: background writer survived job completion"
+        );
+        assert!(!root.path().join("data/custom.pif.json").exists());
+    }
+}
 #[test]
 fn options_conflicts_and_stale_apply_are_explicit() {
     let root = fixture("exit 1\n");

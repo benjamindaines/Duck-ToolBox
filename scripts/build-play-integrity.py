@@ -70,7 +70,7 @@ def source_archive(destination):
                 continue
             archive.add(path, "play-integrity/" + relative.as_posix(), recursive=False)
         archive.add(Path(__file__), "play-integrity/build-play-integrity.py")
-        for name in ["test-play-integrity-native.py", "test-play-integrity-scripts.py"]:
+        for name in ["test-play-integrity-native.py", "test-play-integrity-java.py", "test-play-integrity-scripts.py"]:
             archive.add(SCRIPT_DIR / name, f"play-integrity/{name}")
         materials_license = SCRIPT_DIR / "build-materials-MIT.txt" if STANDALONE else ROOT / "LICENSE"
         archive.add(materials_license, "play-integrity/build-materials-MIT.txt")
