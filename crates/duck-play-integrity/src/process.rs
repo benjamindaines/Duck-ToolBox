@@ -24,6 +24,22 @@ impl std::error::Error for EngineError {}
 
 const OUTPUT_LIMIT: u64 = 2 * 1024 * 1024;
 
+#[cfg(unix)]
+#[allow(unsafe_code)]
+fn kill_owned_group(id: u32) {
+    let Ok(id) = i32::try_from(id) else {
+        return;
+    };
+    if id <= 0 {
+        return;
+    }
+    // SAFETY: kill takes no pointers. Only a positive, owned process-group ID
+    // reaches this call; negation never signals this process's group or all PIDs.
+    unsafe {
+        libc::kill(-id, libc::SIGKILL);
+    }
+}
+
 fn exchange(
     mut command: Command,
     input: &[u8],
@@ -39,6 +55,11 @@ fn exchange(
     request.rewind()?;
     let mut stdout = tempfile::tempfile()?;
     let mut stderr = tempfile::tempfile()?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        command.process_group(0);
+    }
     let mut child = command
         .stdin(Stdio::from(request))
         .stdout(Stdio::from(stdout.try_clone()?))
@@ -62,14 +83,13 @@ fn exchange(
             thread::sleep(Duration::from_millis(10));
         }
     })();
-    let status = match waited {
-        Ok(status) => status,
-        Err(error) => {
-            let _ = child.kill();
-            let _ = child.wait();
-            return Err(error);
-        }
-    };
+    // Background jobs explicitly create their own groups. Reap only descendants
+    // belonging to this exchange, including when the engine exits before them.
+    #[cfg(unix)]
+    kill_owned_group(child.id());
+    let _ = child.kill();
+    let _ = child.wait();
+    let status = waited?;
     let capture = |file: &mut std::fs::File| -> Result<Vec<u8>> {
         file.rewind()?;
         let mut bytes = Vec::new();
@@ -143,5 +163,65 @@ mod tests {
                 .to_string()
                 .contains("exceeds 2 MiB")
         );
+    }
+
+    #[test]
+    fn exchange_reaps_owned_children_and_preserves_detached_jobs() {
+        struct Cleanup(std::path::PathBuf);
+        impl Drop for Cleanup {
+            fn drop(&mut self) {
+                for pid in std::fs::read_to_string(&self.0).unwrap_or_default().lines() {
+                    if let Ok(pid) = pid.parse::<u32>() {
+                        kill_owned_group(pid);
+                    }
+                }
+            }
+        }
+        for mode in ["timeout", "normal", "detached"] {
+            let root = tempfile::tempdir().unwrap();
+            let heartbeat = root.path().join("heartbeat");
+            let groups = root.path().join("groups");
+            let _cleanup = Cleanup(groups.clone());
+            let mut command = Command::new("python3");
+            // Keep cleanup safe when running this regression against the old adapter.
+            use std::os::unix::process::CommandExt;
+            command.process_group(0);
+            command
+                .args([
+                    "-c",
+                    r#"
+import os,signal,time
+mode=os.environ['MODE'];heartbeat=os.environ['HEARTBEAT'];groups=os.environ['GROUPS_FILE']
+with open(groups,'a') as f:f.write(str(os.getpid())+'\n')
+if os.fork()==0:
+ if mode=='detached':
+  os.setpgid(0,0)
+  with open(groups,'a') as f:f.write(str(os.getpid())+'\n')
+ signal.signal(signal.SIGTERM,signal.SIG_IGN)
+ while True:
+  with open(heartbeat,'a') as f:f.write('x')
+  time.sleep(.01)
+else:
+ while not os.path.exists(heartbeat):time.sleep(.01)
+ if mode=='timeout':time.sleep(30)
+ print('done',flush=True)
+"#,
+                ])
+                .env("MODE", mode)
+                .env("HEARTBEAT", &heartbeat)
+                .env("GROUPS_FILE", groups);
+            let result = exchange(command, b"", Duration::from_millis(500));
+            if mode == "timeout" {
+                assert!(result.unwrap_err().to_string().contains("timed out"));
+            } else {
+                let (status, output, _) = result.unwrap();
+                assert!(status.success());
+                assert_eq!(output, b"done\n");
+            }
+            let before = std::fs::metadata(&heartbeat).unwrap().len();
+            thread::sleep(Duration::from_millis(150));
+            let after = std::fs::metadata(&heartbeat).unwrap().len();
+            assert_eq!(after > before, mode == "detached", "{mode}");
+        }
     }
 }

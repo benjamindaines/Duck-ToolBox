@@ -629,6 +629,7 @@ dependencies = [
  "anyhow",
  "clap",
  "duck-core",
+ "libc",
  "serde_json",
  "tempfile",
 ]
