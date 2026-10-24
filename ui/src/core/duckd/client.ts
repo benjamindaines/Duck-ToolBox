@@ -66,12 +66,9 @@ export async function duckd<T = unknown>(
 
   const parsed = options.schema.safeParse(envelope.data)
   if (!parsed.success) {
-    throw new DuckError(
-      "contract_mismatch",
-      z.prettifyError(parsed.error),
-      envelope.command,
-      parsed.error.issues,
-    )
+    // The tsgo-backed compiler does not narrow the safeParse union for a generic schema.
+    const error = parsed.error as z.ZodError
+    throw new DuckError("contract_mismatch", z.prettifyError(error), envelope.command, error.issues)
   }
-  return parsed.data
+  return parsed.data as T
 }

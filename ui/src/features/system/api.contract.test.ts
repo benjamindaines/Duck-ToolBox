@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from "vitest"
 
 import { featureManifest, listFiles } from "@/core/duckd"
 import type { Host, Server } from "@/core/testing/host"
-import { DEVICE_PROPS, CONTRACT, hasDuckd, installHost, serve } from "@/core/testing/host"
+import { DEVICE_PROPS, CONTRACT, hasDuckd, installHost } from "@/core/testing/host"
 
 import { systemApi } from "./api"
 
