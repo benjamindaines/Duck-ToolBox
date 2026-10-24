@@ -16,6 +16,7 @@ pub fn status(engine: &Engine) -> Result<Value> {
 }
 pub fn stop(engine: &Engine) -> Result<Value> {
     // Publish the stop gate before reading any mutable or potentially corrupt state.
+    files::private_dir(&engine.data)?;
     let token = format!(
         "{}-{}",
         std::time::SystemTime::now()

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Modified 2026-10-23: private atomic storage and guarded recovery.
+// Modified 2026-10-24: private atomic storage, preserved external directories and guarded recovery.
 use anyhow::{Result, bail};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
@@ -49,7 +49,16 @@ pub fn private_dir(path: &Path) -> Result<()> {
 }
 pub fn atomic(path: &Path, bytes: &[u8]) -> Result<()> {
     let parent = path.parent().ok_or_else(|| anyhow::anyhow!("no parent"))?;
-    private_dir(parent)?;
+    // Output may belong to an external migration/download directory. Keep its mode;
+    // only newly created directories and the new file need private permissions.
+    let mut directories = fs::DirBuilder::new();
+    directories.recursive(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::DirBuilderExt;
+        directories.mode(0o700);
+    }
+    directories.create(parent)?;
     let tmp = path.with_extension(format!("tmp-{}", std::process::id()));
     let result = (|| {
         let mut options = OpenOptions::new();
@@ -127,5 +136,29 @@ mod tests {
         assert!(Lock::acquire(root.path()).is_err());
         drop(lock);
         assert!(Lock::acquire(root.path()).is_ok());
+    }
+    #[cfg(unix)]
+    #[test]
+    fn atomic_output_preserves_existing_directories_and_privately_creates_new_ones() {
+        use std::os::unix::fs::PermissionsExt;
+        let root = tempfile::tempdir().unwrap();
+        let shared = root.path().join("shared");
+        fs::create_dir(&shared).unwrap();
+        fs::set_permissions(&shared, fs::Permissions::from_mode(0o755)).unwrap();
+        let path = shared.join("new/nested/config");
+        atomic(&path, b"value").unwrap();
+        atomic(&shared.join("export.prop"), b"MODEL=Example").unwrap();
+        for (path, expected) in [
+            (shared.clone(), 0o755),
+            (shared.join("new"), 0o700),
+            (shared.join("new/nested"), 0o700),
+            (path, 0o600),
+            (shared.join("export.prop"), 0o600),
+        ] {
+            assert_eq!(
+                fs::metadata(path).unwrap().permissions().mode() & 0o777,
+                expected
+            );
+        }
     }
 }

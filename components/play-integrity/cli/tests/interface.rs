@@ -237,6 +237,11 @@ fn magisk_directory_is_not_zygisk_runtime_evidence() {
 #[test]
 fn standalone_file_migration_preserves_shell_metacharacters_as_data() {
     let root = tempfile::tempdir().unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(root.path(), fs::Permissions::from_mode(0o755)).unwrap();
+    }
     let source = root.path().join("source.json");
     let output = root.path().join("custom.pif.json");
     let marker = root.path().join("must-not-exist");
@@ -266,6 +271,14 @@ fn standalone_file_migration_preserves_shell_metacharacters_as_data() {
         "original"
     );
     assert!(!marker.exists());
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        assert_eq!(
+            fs::metadata(root.path()).unwrap().permissions().mode() & 0o777,
+            0o755
+        );
+    }
 }
 
 #[test]
