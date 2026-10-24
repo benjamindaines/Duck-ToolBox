@@ -185,7 +185,10 @@ pub fn provision(paths: &AppPaths, profile: DeviceIdsProfile) -> Result<DeviceId
 
     // The CBOR command is only used by the Qualcomm path; TrustKernel builds
     // ASCII payloads internally. An empty vec is passed for the report when
-    // the MediaTek path is taken.
+    // the MediaTek path is taken. CBOR can be used via TrustKernel, but it's
+    // very untested at this point. It takes the ID, but that's all that can be
+    // confirmed currently.
+    // BRAND → DEVICE → PRODUCT → SERIAL → IMEI → IMEI2 → MANUFACTURER → MODEL
     let mediatek = is_mediatek_device();
     let command = if mediatek { Vec::new() } else { command::build(&ids)? };
 
