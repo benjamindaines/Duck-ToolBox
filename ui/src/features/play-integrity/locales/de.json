@@ -138,7 +138,8 @@
     "saved": "Schnappschuss gespeichert. Die angewendete Konfiguration bleibt unverändert.",
     "empty": "Keine gespeicherten Konfigurationen.",
     "remove": "Schnappschuss entfernen",
-    "removeHelp": "Nur dieser Schnappschuss wird entfernt. Die angewendete Konfiguration bleibt erhalten."
+    "removeHelp": "Nur dieser Schnappschuss wird entfernt. Die angewendete Konfiguration bleibt erhalten.",
+    "invalid": "Dieser Schnappschuss ist nicht lesbar. Andere bleiben verfügbar."
   },
   "inspection": {
     "title": "Informationsvergleich",

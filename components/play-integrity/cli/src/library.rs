@@ -55,19 +55,24 @@ fn read_profile(engine: &Engine, id: &str) -> Result<Profile> {
 pub fn profiles(engine: &Engine) -> Result<Value> {
     let directory = engine.data.join("profiles");
     let mut profiles = Vec::new();
+    let mut invalid = Vec::new();
     if directory.exists() {
         for entry in fs::read_dir(directory)? {
             let path = entry?.path();
             if path.extension().and_then(|v| v.to_str()) != Some("json") {
                 continue;
             }
-            if profiles.len() >= 12 {
+            if profiles.len() + invalid.len() >= 12 {
                 bail!("profile limit exceeded");
             }
             let id = path.file_stem().and_then(|v| v.to_str()).unwrap_or("");
-            let p = read_profile(engine, id)?;
-            profiles
-                .push(json!({"id":p.id,"name":p.name,"created":p.created,"revision":p.revision}));
+            profile_path(engine, id)?;
+            match read_profile(engine, id) {
+                Ok(p) => profiles.push(
+                    json!({"id":p.id,"name":p.name,"created":p.created,"revision":p.revision}),
+                ),
+                Err(error) => invalid.push(json!({"id":id,"error":format!("{error:#}")})),
+            }
         }
     }
     profiles.sort_by_key(|p| {
@@ -76,13 +81,16 @@ pub fn profiles(engine: &Engine) -> Result<Value> {
             p["id"].as_str().unwrap_or("").to_owned(),
         )
     });
-    Ok(json!({"profiles":profiles}))
+    Ok(json!({"profiles":profiles,"invalid_profiles":invalid}))
 }
 pub fn save_profile(engine: &Engine, input: &Value) -> Result<Value> {
     let _lock = files::Lock::acquire(&engine.data)?;
-    if profiles(engine)?["profiles"]
-        .as_array()
-        .is_some_and(|p| p.len() >= 12)
+    let existing = profiles(engine)?;
+    if ["profiles", "invalid_profiles"]
+        .iter()
+        .map(|key| existing[key].as_array().map_or(0, Vec::len))
+        .sum::<usize>()
+        >= 12
     {
         bail!("at most 12 profiles can be saved");
     }

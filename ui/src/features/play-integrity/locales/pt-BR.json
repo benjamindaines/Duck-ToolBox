@@ -138,7 +138,8 @@
     "saved": "Instantâneo salvo. A configuração aplicada não mudou.",
     "empty": "Nenhuma configuração salva.",
     "remove": "Remover instantâneo",
-    "removeHelp": "Somente este instantâneo será removido. A configuração aplicada será mantida."
+    "removeHelp": "Somente este instantâneo será removido. A configuração aplicada será mantida.",
+    "invalid": "Não foi possível ler este instantâneo. Os outros continuam disponíveis."
   },
   "inspection": {
     "title": "Comparação de informações",

@@ -51,6 +51,12 @@ describe.skipIf(!hasDuckd || !existsSync(engine))(
       expect((await libraryApi.records()).records).toHaveLength(0)
       await libraryApi.deleteProfile(id)
       expect((await libraryApi.profiles()).profiles).toHaveLength(0)
+      const special = await integrityApi.preview(
+        JSON.stringify({ MODEL: "Draft", "custom.hash": "a#b" }),
+      )
+      expect(special.content.trimStart().startsWith("{")).toBe(true)
+      expect(special.entries["custom.hash"]).toBe("a#b")
+      expect(await integrityApi.config()).toEqual(before)
     })
     it("preserves the independent engine protocol across preview, apply and restore", async () => {
       host = installHost()

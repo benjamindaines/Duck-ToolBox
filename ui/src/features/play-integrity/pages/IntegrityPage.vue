@@ -98,15 +98,17 @@ function picked(file: PickedFile) {
     void s.previewContent(true)
   }
 }
-function exportContent(json = false) {
-  const content = json ? s.config.data.value?.json : s.config.data.value?.content
-  if (content === undefined) return
-  const url = URL.createObjectURL(new Blob([content], { type: "text/plain" }))
-  const anchor = document.createElement("a")
-  anchor.href = url
-  anchor.download = `custom.pif.${json || content.trimStart().startsWith("{") ? "json" : "prop"}`
-  anchor.click()
-  URL.revokeObjectURL(url)
+async function exportContent(json = false) {
+  await s.action(async () => {
+    const draft = await integrityApi.preview(s.content.value)
+    const content = json ? draft.json : draft.content
+    const url = URL.createObjectURL(new Blob([content], { type: "text/plain" }))
+    const anchor = document.createElement("a")
+    anchor.href = url
+    anchor.download = `custom.pif.${json || content.trimStart().startsWith("{") ? "json" : "prop"}`
+    anchor.click()
+    URL.revokeObjectURL(url)
+  })
 }
 async function importFile(event: Event) {
   const input = event.target as HTMLInputElement
@@ -223,9 +225,9 @@ async function importFile(event: Event) {
                 <Button variant="outline" @click="copy(s.content.value)">{{
                   global.t("core.actions.copy")
                 }}</Button>
-                <Button variant="outline" @click="exportContent(false)"
-                  >{{ global.t("core.actions.export") }} .prop</Button
-                >
+                <Button variant="outline" @click="exportContent(false)">{{
+                  global.t("core.actions.export")
+                }}</Button>
                 <Button variant="outline" @click="exportContent(true)"
                   >{{ global.t("core.actions.export") }} .json</Button
                 >

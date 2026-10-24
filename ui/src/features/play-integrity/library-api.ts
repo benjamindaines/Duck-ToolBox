@@ -3,6 +3,7 @@ import { duckd } from "@/core/duckd"
 import { previewSchema } from "./api"
 
 const profilesSchema = z.object({
+  invalid_profiles: z.array(z.object({ id: z.string(), error: z.string() })).default([]),
   profiles: z.array(
     z.object({ id: z.string(), name: z.string(), created: z.number(), revision: z.string() }),
   ),

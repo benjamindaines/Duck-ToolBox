@@ -138,7 +138,8 @@
     "saved": "Instantané enregistré. La configuration appliquée est inchangée.",
     "empty": "Aucune configuration enregistrée.",
     "remove": "Supprimer l’instantané",
-    "removeHelp": "Seul cet instantané sera supprimé. La configuration appliquée sera conservée."
+    "removeHelp": "Seul cet instantané sera supprimé. La configuration appliquée sera conservée.",
+    "invalid": "Cet instantané est illisible. Les autres restent disponibles."
   },
   "inspection": {
     "title": "Comparaison des informations",

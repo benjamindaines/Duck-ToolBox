@@ -138,7 +138,8 @@
     "saved": "Đã lưu bản chụp. Cấu hình đã áp dụng không thay đổi.",
     "empty": "Chưa có cấu hình đã lưu.",
     "remove": "Xóa bản chụp",
-    "removeHelp": "Chỉ xóa bản chụp này. Giữ nguyên cấu hình đã áp dụng."
+    "removeHelp": "Chỉ xóa bản chụp này. Giữ nguyên cấu hình đã áp dụng.",
+    "invalid": "Không đọc được bản chụp này. Các bản khác vẫn dùng được."
   },
   "inspection": {
     "title": "Đối chiếu thông tin",

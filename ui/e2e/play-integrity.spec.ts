@@ -57,7 +57,9 @@ test("edits launch API levels and custom fields through the shared form controls
 }) => {
   await open("/play-integrity/config", { theme: "dark" })
   await page.getByRole("button", { name: "Advanced options", exact: true }).click()
-  await page.getByLabel("DEVICE_INITIAL_SDK_INT", { exact: true }).fill("36")
+  await page
+    .getByLabel("First shipped API level · DEVICE_INITIAL_SDK_INT", { exact: true })
+    .fill("36")
   await page.getByLabel("ro.board.first_api_level", { exact: true }).fill("35")
   await page.getByLabel("Custom field or property", { exact: true }).fill("custom.flag")
   await page.getByRole("button", { name: "Add", exact: true }).click()

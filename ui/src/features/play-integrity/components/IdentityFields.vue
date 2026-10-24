@@ -72,7 +72,7 @@ function set(key: string, value: string) {
               }}</span>
               <Input
                 :id="`pif-${field}`"
-                :aria-label="field"
+                :aria-label="label(field) === field ? field : `${label(field)} · ${field}`"
                 :model-value="entries[field] ?? ''"
                 class="font-mono text-sm"
                 autocapitalize="off"
@@ -87,7 +87,7 @@ function set(key: string, value: string) {
               }}</span>
               <Input
                 :id="`pif-${property}`"
-                :aria-label="property"
+                :aria-label="`${t('editing.property')} · ${property}`"
                 :model-value="entries[property] ?? ''"
                 class="font-mono text-sm"
                 autocapitalize="off"

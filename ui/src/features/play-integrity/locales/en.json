@@ -138,7 +138,8 @@
     "saved": "Snapshot saved. The active configuration is unchanged.",
     "empty": "No saved configurations.",
     "remove": "Remove snapshot",
-    "removeHelp": "Only this saved snapshot will be removed. The applied configuration is retained."
+    "removeHelp": "Only this saved snapshot will be removed. The applied configuration is retained.",
+    "invalid": "This snapshot could not be read. Other snapshots are available."
   },
   "inspection": {
     "title": "Information comparison",

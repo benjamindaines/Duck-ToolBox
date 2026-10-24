@@ -138,7 +138,8 @@
     "saved": "Snapshot disimpan. Konfigurasi yang diterapkan tidak berubah.",
     "empty": "Belum ada konfigurasi tersimpan.",
     "remove": "Hapus snapshot",
-    "removeHelp": "Hanya snapshot ini yang dihapus. Konfigurasi yang diterapkan tetap disimpan."
+    "removeHelp": "Hanya snapshot ini yang dihapus. Konfigurasi yang diterapkan tetap disimpan.",
+    "invalid": "Snapshot ini tidak dapat dibaca. Snapshot lain tetap tersedia."
   },
   "inspection": {
     "title": "Perbandingan informasi",

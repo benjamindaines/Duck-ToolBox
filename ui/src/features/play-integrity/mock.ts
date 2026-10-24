@@ -20,6 +20,10 @@ let stopRevision = "initial"
 let interrupted = new URLSearchParams(location.search).get("interrupted-transaction") === "1"
 const profiles: Awaited<ReturnType<typeof libraryApi.profiles>>["profiles"] = []
 const profileContents = new Map<string, string>()
+const invalidProfiles = new URLSearchParams(location.search).has("corrupt-pif-library")
+  ? [{ id: "a".repeat(64), error: "Invalid snapshot fixture" }]
+  : []
+let corruptHistory = new URLSearchParams(location.search).has("corrupt-pif-history")
 const records: Awaited<ReturnType<typeof libraryApi.records>>["records"] = []
 const options: Options = {
   enabled: true,
@@ -50,9 +54,11 @@ function preview(value: string) {
     : entries(value)
   const before = entries(content)
   return {
-    content: Object.entries(next)
-      .map(([key, value]) => `${key}=${value}\n`)
-      .join(""),
+    content: Object.values(next).some((value) => value.includes("#"))
+      ? JSON.stringify(next, null, 2)
+      : Object.entries(next)
+          .map(([key, value]) => `${key}=${value}\n`)
+          .join(""),
     json: JSON.stringify(next),
     entries: next,
     revision,
@@ -65,24 +71,27 @@ function preview(value: string) {
 const mock: MockModule = {
   feature: { id: "play-integrity", contract: 1 },
   handlers: {
-    "play-integrity.profile-list": () => ({ profiles: [...profiles] }),
+    "play-integrity.profile-list": () => ({
+      profiles: [...profiles],
+      invalid_profiles: [...invalidProfiles],
+    }),
     "play-integrity.profile-save": (_args, _flags, input) => {
       const value = input as { name: string; content: string }
       const id = String(Date.now())
       profiles.unshift({ id, name: value.name, created: Date.now() / 1000, revision })
       profileContents.set(id, value.content)
-      return { profiles: [...profiles] }
+      return { profiles: [...profiles], invalid_profiles: [...invalidProfiles] }
     },
     "play-integrity.profile-preview": (_args, _flags, input) =>
       preview(profileContents.get((input as { id: string }).id) ?? ""),
     "play-integrity.profile-delete": (_args, _flags, input) => {
       const id = (input as { id: string }).id
-      profiles.splice(
-        profiles.findIndex((p) => p.id === id),
-        1,
-      )
+      const index = profiles.findIndex((p) => p.id === id)
+      if (index >= 0) profiles.splice(index, 1)
+      const invalid = invalidProfiles.findIndex((p) => p.id === id)
+      if (invalid >= 0) invalidProfiles.splice(invalid, 1)
       profileContents.delete(id)
-      return { profiles: [...profiles] }
+      return { profiles: [...profiles], invalid_profiles: [...invalidProfiles] }
     },
     "play-integrity.inspect": () => ({
       revision,
@@ -98,11 +107,14 @@ const mock: MockModule = {
         observed: null,
       })),
     }),
-    "play-integrity.record-list": () => ({
-      records: [...records],
-      user_reported: true,
-      verdict_verified: false,
-    }),
+    "play-integrity.record-list": () => {
+      if (corruptHistory) throw new MockFailure("engine_error", "Invalid test history fixture")
+      return {
+        records: [...records],
+        user_reported: true,
+        verdict_verified: false,
+      }
+    },
     "play-integrity.record-save": (_args, _flags, input) => {
       const v = input as Parameters<typeof libraryApi.saveRecord>[0]
       if (v.revision !== revision)
@@ -127,6 +139,7 @@ const mock: MockModule = {
       return { records: [...records], user_reported: true, verdict_verified: false }
     },
     "play-integrity.record-clear": () => {
+      corruptHistory = false
       records.splice(0)
       return { records: [], user_reported: true, verdict_verified: false }
     },

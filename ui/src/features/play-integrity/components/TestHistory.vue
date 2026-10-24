@@ -130,15 +130,15 @@ async function work(clear = false) {
           <p v-if="record.note" class="mt-2 break-words">{{ record.note }}</p>
         </SettingDetails>
       </article>
-      <Button
-        v-if="history.data.value?.records.length"
-        variant="ghost"
-        class="self-start"
-        :disabled="busy"
-        @click="confirm = true"
-        >{{ t("history.clear") }}</Button
-      >
     </QueryState>
+    <Button
+      v-if="history.error.value || history.data.value?.records.length"
+      variant="ghost"
+      class="self-start"
+      :disabled="busy"
+      @click="confirm = true"
+      >{{ t("history.clear") }}</Button
+    >
     <ConfirmDialog
       v-model:open="confirm"
       :title="t('history.clear')"

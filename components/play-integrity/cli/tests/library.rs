@@ -145,3 +145,50 @@ fn manual_tests_keep_revision_and_mode_and_never_claim_verification() {
     );
     assert_eq!(request(root.path(), "config", json!({}))["data"], config);
 }
+
+#[test]
+fn a_corrupt_snapshot_does_not_hide_valid_snapshots_or_evade_capacity() {
+    let root = tempfile::tempdir().unwrap();
+    let first = request(
+        root.path(),
+        "profile-save",
+        json!({"name":"Corrupt","content":"MODEL=A"}),
+    );
+    let id = first["data"]["profiles"][0]["id"].as_str().unwrap();
+    let path = root.path().join("data/profiles").join(format!("{id}.json"));
+    std::fs::write(&path, "{broken").unwrap();
+    for i in 0..11 {
+        assert_eq!(
+            request(
+                root.path(),
+                "profile-save",
+                json!({"name":format!("Valid {i}"),"content":"MODEL=B"})
+            )["ok"],
+            true
+        );
+    }
+    let listed = request(root.path(), "profile-list", json!({}));
+    assert_eq!(listed["data"]["profiles"].as_array().unwrap().len(), 11);
+    assert_eq!(listed["data"]["invalid_profiles"][0]["id"], id);
+    assert_eq!(
+        request(root.path(), "profile-preview", json!({"id":id}))["ok"],
+        false
+    );
+    assert_eq!(std::fs::read_to_string(path).unwrap(), "{broken");
+    assert_eq!(
+        request(
+            root.path(),
+            "profile-save",
+            json!({"name":"Overflow","content":"MODEL=C"})
+        )["ok"],
+        false
+    );
+    assert_eq!(
+        request(root.path(), "profile-delete", json!({"id":id}))["ok"],
+        true
+    );
+    assert_eq!(
+        request(root.path(), "profile-list", json!({}))["data"]["invalid_profiles"],
+        json!([])
+    );
+}

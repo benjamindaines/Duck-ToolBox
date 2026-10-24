@@ -104,6 +104,8 @@ Configuration library and observations use the same version 1 request protocol:
 `profile-delete` (`id`). At most 12 immutable snapshots are retained. Previewing
 uses the current applied revision; saving, previewing or deleting a snapshot never
 applies configuration or enables the engine.
+Unreadable snapshots are reported individually, remain counted toward the storage
+limit, and require explicit removal; they do not hide healthy snapshots.
 
 `record-list`, `record-save` and `record-clear` manage the latest 24 manually
 reported observations. A record supplies `app`, optional `version` and `note`,

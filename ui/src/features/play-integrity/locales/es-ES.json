@@ -138,7 +138,8 @@
     "saved": "Instantánea guardada. La configuración aplicada no ha cambiado.",
     "empty": "No hay configuraciones guardadas.",
     "remove": "Eliminar instantánea",
-    "removeHelp": "Solo se eliminará esta instantánea. La configuración aplicada se conserva."
+    "removeHelp": "Solo se eliminará esta instantánea. La configuración aplicada se conserva.",
+    "invalid": "No se pudo leer esta instantánea. Las demás siguen disponibles."
   },
   "inspection": {
     "title": "Comparación de información",

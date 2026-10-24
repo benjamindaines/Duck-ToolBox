@@ -67,12 +67,32 @@ function askRemove(id: string) {
           variant="secondary"
           :disabled="
             busy ||
+            profiles.isPending.value ||
+            !!profiles.error.value ||
             !name.trim() ||
             !content.trim() ||
-            (profiles.data.value?.profiles.length ?? 0) >= 12
+            (profiles.data.value?.profiles.length ?? 0) +
+              (profiles.data.value?.invalid_profiles.length ?? 0) >=
+              12
           "
           @click="save(content)"
           >{{ t("profiles.save") }}</Button
+        >
+      </div>
+      <div
+        v-for="profile in profiles.data.value?.invalid_profiles"
+        :key="profile.id"
+        class="rounded-xl border p-3 text-sm"
+      >
+        <p>{{ t("profiles.invalid") }}</p>
+        <p class="text-muted-foreground mt-1 font-mono text-xs break-all">{{ profile.id }}</p>
+        <p class="text-muted-foreground mt-2 break-words">{{ profile.error }}</p>
+        <Button
+          variant="ghost"
+          :disabled="busy"
+          :aria-label="`${global.t('core.actions.remove')}: ${profile.id}`"
+          @click="askRemove(profile.id)"
+          >{{ global.t("core.actions.remove") }}</Button
         >
       </div>
     </Field>
@@ -81,7 +101,14 @@ function askRemove(id: string) {
       :error="profiles.error.value"
       @retry="profiles.refetch()"
     >
-      <p v-if="!profiles.data.value?.profiles.length" class="text-muted-foreground text-sm">
+      <p
+        v-if="
+          profiles.data.value &&
+          !profiles.data.value.profiles.length &&
+          !profiles.data.value.invalid_profiles.length
+        "
+        class="text-muted-foreground text-sm"
+      >
         {{ t("profiles.empty") }}
       </p>
       <div

@@ -26,6 +26,24 @@ def elf(path, width, machine):
         raise ValueError(f"Incorrect ELF ABI: {path}")
 
 
+def check_source_materials(archive, engine, scripts):
+    excluded = {".gradle", ".kotlin", ".cxx", "build", "target", "module", "vendor", ".git"}
+    materials = {
+        "play-integrity/" + path.relative_to(engine).as_posix(): path
+        for path in engine.rglob("*")
+        if path.is_file() and not any(part in excluded for part in path.relative_to(engine).parts)
+    }
+    for name in ["build-play-integrity.py", "test-play-integrity-native.py", "test-play-integrity-java.py", "test-play-integrity-scripts.py"]:
+        materials[f"play-integrity/{name}"] = scripts / name
+    for name, path in materials.items():
+        try:
+            member = archive.getmember(name)
+        except KeyError as error:
+            raise ValueError(f"Corresponding source is missing {name}; rebuild the engine") from error
+        if not member.isfile() or archive.extractfile(member).read() != path.read_bytes():
+            raise ValueError(f"Corresponding source is out of date: {name}; rebuild the engine")
+
+
 def validate():
     require(MODULE / "webroot/index.html")
     require(MODULE / "play-integrity/build.json")
@@ -57,6 +75,7 @@ def validate():
     if hashlib.sha256(source.read_bytes()).hexdigest() != manifest["source_sha256"]:
         raise ValueError("Corresponding-source hash mismatch")
     with tarfile.open(source) as archive:
+        check_source_materials(archive, ROOT / "components/play-integrity", ROOT / "scripts")
         for name in ["Cargo.toml", "Cargo.lock", "LICENSE", "NOTICE", "RULES.md", "build-play-integrity.py", "build-materials-MIT.txt", "test-play-integrity-native.py", "test-play-integrity-java.py", "test-play-integrity-scripts.py", "tests/native.cpp", "tests/jni.cpp", "tests/FieldValueTest.java", "cli/src/main.rs", "cli/src/library.rs", "cli/src/inspection.rs", "cli/tests/library.rs", "cli/tests/interface.rs", "android/app/build.gradle.kts", "scripts/stage.sh", "vendor/json/LICENSE.MIT", ".cargo/config.toml"]:
             member = archive.getmember(f"play-integrity/{name}")
             if not member.isfile() or not member.size:
