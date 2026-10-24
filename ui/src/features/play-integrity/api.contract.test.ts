@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from "vitest"
 import { CONTRACT, hasDuckd, installHost } from "@/core/testing/host"
 import type { Host } from "@/core/testing/host"
 import { integrityApi } from "./api"
+import { libraryApi } from "./library-api"
 
 const repository = path.resolve(import.meta.dirname, "../../../..")
 const engine =
@@ -19,6 +20,38 @@ describe.skipIf(!hasDuckd || !existsSync(engine))(
   "Play Integrity adapter against the standalone engine",
   CONTRACT,
   () => {
+    it("stores snapshots and manual results through the engine without applying or enabling", async () => {
+      host = installHost()
+      await integrityApi.disable()
+      const before = await integrityApi.config()
+      const snapshot = await libraryApi.saveProfile(
+        "Contract snapshot",
+        "MODEL=Snapshot\nCUSTOM=retain",
+      )
+      const id = snapshot.profiles[0]!.id
+      const preview = await libraryApi.profilePreview(id)
+      expect(preview.entries.CUSTOM).toBe("retain")
+      expect(await integrityApi.config()).toEqual(before)
+      expect((await integrityApi.power()).enabled).toBe(false)
+      expect((await libraryApi.inspect()).rows.every((row) => row.observed === null)).toBe(true)
+      const records = await libraryApi.saveRecord({
+        app: "Manual fixture",
+        version: "1",
+        note: "",
+        basic: "pass",
+        device: "unknown",
+        strong: "fail",
+        revision: before.revision,
+      })
+      expect(records.user_reported).toBe(true)
+      expect(records.verdict_verified).toBe(false)
+      expect(records.records[0]?.enabled).toBe(false)
+      expect((await libraryApi.records()).records).toHaveLength(1)
+      await libraryApi.clearRecords()
+      expect((await libraryApi.records()).records).toHaveLength(0)
+      await libraryApi.deleteProfile(id)
+      expect((await libraryApi.profiles()).profiles).toHaveLength(0)
+    })
     it("preserves the independent engine protocol across preview, apply and restore", async () => {
       host = installHost()
       const status = await integrityApi.status()

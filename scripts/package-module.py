@@ -57,7 +57,7 @@ def validate():
     if hashlib.sha256(source.read_bytes()).hexdigest() != manifest["source_sha256"]:
         raise ValueError("Corresponding-source hash mismatch")
     with tarfile.open(source) as archive:
-        for name in ["Cargo.toml", "Cargo.lock", "LICENSE", "NOTICE", "RULES.md", "build-play-integrity.py", "build-materials-MIT.txt", "test-play-integrity-native.py", "test-play-integrity-java.py", "test-play-integrity-scripts.py", "tests/native.cpp", "tests/jni.cpp", "tests/FieldValueTest.java", "cli/src/main.rs", "cli/tests/interface.rs", "android/app/build.gradle.kts", "scripts/stage.sh", "vendor/json/LICENSE.MIT", ".cargo/config.toml"]:
+        for name in ["Cargo.toml", "Cargo.lock", "LICENSE", "NOTICE", "RULES.md", "build-play-integrity.py", "build-materials-MIT.txt", "test-play-integrity-native.py", "test-play-integrity-java.py", "test-play-integrity-scripts.py", "tests/native.cpp", "tests/jni.cpp", "tests/FieldValueTest.java", "cli/src/main.rs", "cli/src/library.rs", "cli/src/inspection.rs", "cli/tests/library.rs", "cli/tests/interface.rs", "android/app/build.gradle.kts", "scripts/stage.sh", "vendor/json/LICENSE.MIT", ".cargo/config.toml"]:
             member = archive.getmember(f"play-integrity/{name}")
             if not member.isfile() or not member.size:
                 raise ValueError(f"Missing corresponding-source material: {name}")

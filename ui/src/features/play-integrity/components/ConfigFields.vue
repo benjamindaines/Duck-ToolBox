@@ -12,27 +12,14 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useIntegrityI18n } from "../i18n"
+import { identityPairs } from "../fields"
+import IdentityFields from "./IdentityFields.vue"
+import SettingDetails from "./SettingDetails.vue"
 
 const entries = defineModel<Record<string, string>>({ required: true })
 const { t } = useIntegrityI18n()
 const name = ref("")
-const fields = [
-  "MANUFACTURER",
-  "MODEL",
-  "BRAND",
-  "FINGERPRINT",
-  "PRODUCT",
-  "DEVICE",
-  "RELEASE",
-  "ID",
-  "INCREMENTAL",
-  "TYPE",
-  "TAGS",
-  "SECURITY_PATCH",
-  "DEVICE_INITIAL_SDK_INT",
-  "ro.product.first_api_level",
-  "ro.board.first_api_level",
-]
+const fields: string[] = identityPairs.flatMap(([field, property]) => [field, property])
 const flags = ["spoofBuild", "spoofProps", "spoofProvider", "spoofSignature"] as const
 const values = ["spoofVendingFinger", "spoofVendingSdk", "verboseLogs"] as const
 const extra = computed(() =>
@@ -59,81 +46,83 @@ function add() {
 <template>
   <div class="flex flex-col gap-6">
     <p class="text-muted-foreground text-sm">{{ t("fieldsHelp") }}</p>
-    <div class="grid min-w-0 gap-5 sm:grid-cols-2">
-      <Field v-for="key in fields" :key="key" :class="key === 'FINGERPRINT' ? 'sm:col-span-2' : ''">
-        <FieldLabel :for="`pif-${key}`" class="break-all font-mono text-xs">{{ key }}</FieldLabel>
-        <Input
-          :id="`pif-${key}`"
-          :model-value="entries[key] ?? ''"
-          class="font-mono text-sm"
-          autocapitalize="off"
-          spellcheck="false"
-          @update:model-value="set(key, String($event))"
-        />
-      </Field>
-    </div>
-    <div class="flex flex-col gap-5">
-      <Field v-for="key in flags" :key="key" orientation="horizontal">
-        <FieldContent>
-          <FieldLabel :for="`pif-${key}`" class="font-mono">{{ key }}</FieldLabel>
-          <FieldDescription>{{ t(`flagHelp.${key}`) }}</FieldDescription>
-        </FieldContent>
-        <Select
-          :model-value="entries[key] || 'inherit'"
-          @update:model-value="$event === 'inherit' ? remove(key) : set(key, String($event))"
+    <IdentityFields v-model="entries" />
+    <SettingDetails :title="t('editing.advanced')">
+      <div class="flex flex-col gap-5">
+        <Field v-for="key in flags" :key="key" orientation="horizontal">
+          <FieldContent>
+            <FieldLabel :for="`pif-${key}`">{{ t(`editing.${key}`) }}</FieldLabel>
+            <span class="text-muted-foreground font-mono text-xs">{{ key }}</span>
+            <FieldDescription>{{ t(`flagHelp.${key}`) }}</FieldDescription>
+          </FieldContent>
+          <Select
+            :model-value="entries[key] || 'inherit'"
+            @update:model-value="$event === 'inherit' ? remove(key) : set(key, String($event))"
+          >
+            <SelectTrigger :id="`pif-${key}`" class="w-36 shrink-0"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="inherit">{{
+                t(key === "spoofSignature" ? "editing.defaultOff" : "editing.defaultOn")
+              }}</SelectItem>
+              <SelectItem value="0">0 · {{ t("off") }}</SelectItem>
+              <SelectItem value="1">1 · {{ t("on") }}</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+      </div>
+      <div class="grid min-w-0 gap-5 sm:grid-cols-2">
+        <Field
+          v-for="key in [
+            ...values,
+            'ro.board.first_api_level',
+            ...extra.filter((key) => key !== 'ro.board.first_api_level'),
+          ]"
+          :key="key"
         >
-          <SelectTrigger :id="`pif-${key}`" class="w-36 shrink-0"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="inherit">{{ t("inherit") }}</SelectItem>
-            <SelectItem value="0">0 · {{ t("off") }}</SelectItem>
-            <SelectItem value="1">1 · {{ t("on") }}</SelectItem>
-          </SelectContent>
-        </Select>
-      </Field>
-    </div>
-    <div class="grid min-w-0 gap-5 sm:grid-cols-2">
-      <Field v-for="key in [...values, ...extra]" :key="key">
-        <FieldLabel :for="`pif-${key}`" class="break-all font-mono text-xs">{{ key }}</FieldLabel>
-        <div class="flex min-w-0 items-center gap-2">
+          <FieldLabel :for="`pif-${key}`" class="break-all font-mono text-xs">{{ key }}</FieldLabel>
+          <div class="flex min-w-0 items-center gap-2">
+            <Input
+              :id="`pif-${key}`"
+              :model-value="entries[key] ?? ''"
+              class="min-w-0 font-mono text-sm"
+              autocapitalize="off"
+              spellcheck="false"
+              @update:model-value="set(key, String($event))"
+            />
+            <Button
+              v-if="extra.includes(key)"
+              variant="ghost"
+              size="icon"
+              :aria-label="`${t('removeField')}: ${key}`"
+              @click="remove(key)"
+              ><Trash2
+            /></Button>
+          </div>
+          <FieldDescription
+            v-if="
+              key === 'spoofVendingFinger' || key === 'spoofVendingSdk' || key === 'verboseLogs'
+            "
+            >{{ t(`flagHelp.${key}`) }}</FieldDescription
+          >
+        </Field>
+      </div>
+      <Field>
+        <FieldLabel for="pif-new-field">{{ t("customField") }}</FieldLabel>
+        <div class="flex gap-2">
           <Input
-            :id="`pif-${key}`"
-            :model-value="entries[key] ?? ''"
-            class="min-w-0 font-mono text-sm"
+            id="pif-new-field"
+            v-model="name"
+            class="min-w-0 font-mono"
             autocapitalize="off"
             spellcheck="false"
-            @update:model-value="set(key, String($event))"
+            @keydown.enter.prevent="add"
           />
-          <Button
-            v-if="extra.includes(key)"
-            variant="ghost"
-            size="icon"
-            :aria-label="`${t('removeField')}: ${key}`"
-            @click="remove(key)"
-            ><Trash2
-          /></Button>
+          <Button variant="outline" :disabled="!validName" @click="add"
+            ><Plus />{{ t("addField") }}</Button
+          >
         </div>
-        <FieldDescription
-          v-if="key === 'spoofVendingFinger' || key === 'spoofVendingSdk' || key === 'verboseLogs'"
-          >{{ t(`flagHelp.${key}`) }}</FieldDescription
-        >
+        <FieldDescription>{{ t("wildcardHelp") }}</FieldDescription>
       </Field>
-    </div>
-    <Field>
-      <FieldLabel for="pif-new-field">{{ t("customField") }}</FieldLabel>
-      <div class="flex gap-2">
-        <Input
-          id="pif-new-field"
-          v-model="name"
-          class="min-w-0 font-mono"
-          autocapitalize="off"
-          spellcheck="false"
-          @keydown.enter.prevent="add"
-        />
-        <Button variant="outline" :disabled="!validName" @click="add"
-          ><Plus />{{ t("addField") }}</Button
-        >
-      </div>
-      <FieldDescription>{{ t("wildcardHelp") }}</FieldDescription>
-    </Field>
+    </SettingDetails>
   </div>
 </template>

@@ -5,6 +5,7 @@ test("previews arbitrary configuration before applying and exposes GPL notices",
   open,
 }) => {
   await open("/play-integrity/config")
+  await page.getByRole("button", { name: "Raw text", exact: true }).click()
   await expect(
     page.getByText("Based on Play Integrity Fork (GPLv3), modified.", { exact: true }),
   ).toBeVisible()
@@ -32,6 +33,7 @@ test("generates a candidate without replacing the saved configuration", async ({
   await expect(page.getByRole("button", { name: "Apply configuration", exact: true })).toBeVisible()
   await page.getByRole("button", { name: "Dismiss preview", exact: true }).click()
   await page.getByRole("link", { name: "Configuration", exact: true }).click()
+  await page.getByRole("button", { name: "Raw text", exact: true }).click()
   await expect(page.getByLabel("Configuration", { exact: true })).not.toHaveValue(
     /MODEL=Pixel Canary/,
   )
@@ -44,6 +46,7 @@ test("supports mode changes, process diagnostics and Chinese notices", async ({ 
   await page.getByRole("link", { name: "Status", exact: true }).click()
   await expect(page.getByText("Scripts-only mode", { exact: true })).toBeVisible()
   await page.getByRole("link", { name: "Diagnostics", exact: true }).click()
+  await page.getByRole("button", { name: "Engine logs and process restart", exact: true }).click()
   await page.getByRole("button", { name: "Read engine logs", exact: true }).click()
   await expect(page.getByText(/Injection initialized/)).toBeVisible()
 })
@@ -53,7 +56,7 @@ test("edits launch API levels and custom fields through the shared form controls
   open,
 }) => {
   await open("/play-integrity/config", { theme: "dark" })
-  await page.getByRole("button", { name: "Edit fields", exact: true }).click()
+  await page.getByRole("button", { name: "Advanced options", exact: true }).click()
   await page.getByLabel("DEVICE_INITIAL_SDK_INT", { exact: true }).fill("36")
   await page.getByLabel("ro.board.first_api_level", { exact: true }).fill("35")
   await page.getByLabel("Custom field or property", { exact: true }).fill("custom.flag")
@@ -84,6 +87,7 @@ test("imports a file into a preview and rolls back a rejected patch update", asy
   open,
 }) => {
   await open("/play-integrity/config", { query: { "patch-fail": "1" } })
+  await page.getByRole("button", { name: "Import, export and raw files", exact: true }).click()
   await page.locator('input[aria-label="Import"]').setInputFiles({
     name: "custom.pif.prop",
     mimeType: "text/plain",
@@ -93,7 +97,11 @@ test("imports a file into a preview and rolls back a rejected patch update", asy
   await page.getByLabel(/Also apply this keystore patch policy/).check()
   await page.getByRole("button", { name: "Apply configuration", exact: true }).click()
   await expect(page.getByText("Patch fixture rejected", { exact: true })).toBeVisible()
-  await expect(page.getByLabel("Configuration", { exact: true })).toHaveValue(/MODEL=Pixel 9 Pro/)
+  await expect(page.getByLabel("Configuration", { exact: true })).toHaveValue(/MODEL=Candidate/)
+  await expect(page.getByText("Draft · not applied", { exact: true })).toBeVisible()
+  await page.getByRole("link", { name: "Diagnostics", exact: true }).click()
+  await page.getByRole("button", { name: "Show field comparison", exact: true }).click()
+  await expect(page.locator("dl").getByText("Pixel 9 Pro", { exact: true })).toBeVisible()
 })
 
 test("requires confirmation to recover an interrupted backend transaction", async ({
@@ -101,6 +109,7 @@ test("requires confirmation to recover an interrupted backend transaction", asyn
   open,
 }) => {
   await open("/play-integrity/config", { query: { "interrupted-transaction": "1" } })
+  await page.getByRole("button", { name: "Raw text", exact: true }).click()
   await expect(page.getByText("Interrupted configuration update", { exact: true })).toBeVisible()
   await page.getByLabel("Configuration", { exact: true }).fill("MODEL=Blocked")
   await page.getByRole("button", { name: "Preview changes", exact: true }).click()
@@ -209,6 +218,7 @@ test("tab pressed overlay stays within its link bounds", async ({ page, open }) 
 
 test("retains uncommitted edits during tab changes", async ({ page, open }) => {
   await open("/play-integrity/config")
+  await page.getByRole("button", { name: "Raw text", exact: true }).click()
   const draft = "MODEL=DraftOnly\nEXTRA=keep"
   const content = page.getByLabel("Configuration", { exact: true })
   await content.fill(draft)

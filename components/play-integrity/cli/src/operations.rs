@@ -59,6 +59,14 @@ pub fn run(engine: &Engine, operation: &str, input: Value) -> Result<Value> {
         "disable" => crate::shutdown::stop(engine),
         "status" => status(engine),
         "config" => config::current(engine),
+        "inspect" => crate::inspection::inspect(engine),
+        "profile-list" => crate::library::profiles(engine),
+        "profile-save" => crate::library::save_profile(engine, &input),
+        "profile-preview" => crate::library::preview_profile(engine, &input),
+        "profile-delete" => crate::library::delete_profile(engine, &input),
+        "record-list" => crate::library::records(engine),
+        "record-save" => crate::library::save_record(engine, &input, || options(engine)),
+        "record-clear" => crate::library::clear_records(engine),
         "preview" => config::preview(engine, &input),
         "import-preview" => {
             let source = text(&input, "source")?;

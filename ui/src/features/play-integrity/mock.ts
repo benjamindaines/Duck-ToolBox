@@ -1,15 +1,26 @@
 import type { MockModule } from "@/core/mock"
 import { MockFailure } from "@/core/mock"
 import type { Options } from "./api"
+import { identityPairs } from "./fields"
+import type { libraryApi } from "./library-api"
 
 let content =
   "MODEL=Pixel 9 Pro\nFINGERPRINT=google/caiman/caiman:16/ID/123:user/release-keys\nSECURITY_PATCH=2026-10-05\nspoofProvider=0\n"
 let revision = "initial"
+const revisions = new Map([[content, revision]])
+function contentRevision() {
+  const next = revisions.get(content) ?? `configuration-${revisions.size}`
+  revisions.set(content, next)
+  return next
+}
 let previous = ""
 let count = 0
 let cancelled = false
 let stopRevision = "initial"
 let interrupted = new URLSearchParams(location.search).get("interrupted-transaction") === "1"
+const profiles: Awaited<ReturnType<typeof libraryApi.profiles>>["profiles"] = []
+const profileContents = new Map<string, string>()
+const records: Awaited<ReturnType<typeof libraryApi.records>>["records"] = []
 const options: Options = {
   enabled: true,
   mode: "full",
@@ -54,6 +65,71 @@ function preview(value: string) {
 const mock: MockModule = {
   feature: { id: "play-integrity", contract: 1 },
   handlers: {
+    "play-integrity.profile-list": () => ({ profiles: [...profiles] }),
+    "play-integrity.profile-save": (_args, _flags, input) => {
+      const value = input as { name: string; content: string }
+      const id = String(Date.now())
+      profiles.unshift({ id, name: value.name, created: Date.now() / 1000, revision })
+      profileContents.set(id, value.content)
+      return { profiles: [...profiles] }
+    },
+    "play-integrity.profile-preview": (_args, _flags, input) =>
+      preview(profileContents.get((input as { id: string }).id) ?? ""),
+    "play-integrity.profile-delete": (_args, _flags, input) => {
+      const id = (input as { id: string }).id
+      profiles.splice(
+        profiles.findIndex((p) => p.id === id),
+        1,
+      )
+      profileContents.delete(id)
+      return { profiles: [...profiles] }
+    },
+    "play-integrity.inspect": () => ({
+      revision,
+      read_error: null,
+      runtime_observed: false,
+      verdict_verified: false,
+      rows: identityPairs.map(([field, property]) => ({
+        field,
+        property,
+        system: null,
+        saved_build: entries(content)[field] ?? null,
+        saved_property: entries(content)[property] ?? null,
+        observed: null,
+      })),
+    }),
+    "play-integrity.record-list": () => ({
+      records: [...records],
+      user_reported: true,
+      verdict_verified: false,
+    }),
+    "play-integrity.record-save": (_args, _flags, input) => {
+      const v = input as Parameters<typeof libraryApi.saveRecord>[0]
+      if (v.revision !== revision)
+        throw new MockFailure(
+          "engine_error",
+          "Configuration changed; refresh before recording a test",
+        )
+      records.unshift({
+        id: String(Date.now()),
+        created: Date.now() / 1000,
+        app: v.app,
+        version: v.version,
+        note: v.note,
+        results: [v.basic, v.device, v.strong],
+        revision,
+        model: entries(content).MODEL ?? "",
+        fingerprint: entries(content).FINGERPRINT ?? "",
+        enabled: options.enabled,
+        mode: options.mode,
+      })
+      records.splice(24)
+      return { records: [...records], user_reported: true, verdict_verified: false }
+    },
+    "play-integrity.record-clear": () => {
+      records.splice(0)
+      return { records: [], user_reported: true, verdict_verified: false }
+    },
     "play-integrity.power": () => ({
       enabled: options.enabled,
       disabled_by_marker: !options.enabled,
@@ -126,12 +202,12 @@ const mock: MockModule = {
         throw new MockFailure("engine_error", "Configuration changed; preview again")
       previous = content
       content = preview(request.content).content
-      revision = String(Date.now())
+      revision = contentRevision()
       return { config: config(), backup: "mock-backup", restart_required: true }
     },
     "play-integrity.restore": () => {
       content = previous
-      revision = String(Date.now())
+      revision = contentRevision()
       return { config: config(), restart_required: true }
     },
     "play-integrity.options": (_args, _flags, input) => {

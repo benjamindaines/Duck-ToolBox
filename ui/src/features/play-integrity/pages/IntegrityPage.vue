@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch, useTemplateRef } from "vue"
+import { computed, nextTick, ref, watch, useTemplateRef } from "vue"
 import { RefreshCw, FileSliders, FileCode } from "@lucide/vue"
 import { useI18n } from "vue-i18n"
 import { RouterLink } from "vue-router"
@@ -24,6 +24,11 @@ import { notifyError } from "@/core/notify"
 import EnginePower from "../components/EnginePower.vue"
 import RecoveryNotice from "../components/RecoveryNotice.vue"
 import ConfigFields from "../components/ConfigFields.vue"
+import SettingDetails from "../components/SettingDetails.vue"
+import ProfileLibrary from "../components/ProfileLibrary.vue"
+import ConfigInspection from "../components/ConfigInspection.vue"
+import TestHistory from "../components/TestHistory.vue"
+import RuleGuide from "../components/RuleGuide.vue"
 import { integrityApi } from "../api"
 import ConfigPreview from "../components/ConfigPreview.vue"
 import LicenseFooter from "../components/LicenseFooter.vue"
@@ -34,6 +39,17 @@ const { t } = s
 const global = useI18n()
 const copy = useCopy()
 const upload = useTemplateRef<HTMLInputElement>("upload")
+const tabNav = useTemplateRef<HTMLElement>("tabNav")
+watch(
+  () => props.section,
+  async () => {
+    await nextTick()
+    tabNav.value
+      ?.querySelector('[aria-current="page"]')
+      ?.scrollIntoView({ block: "nearest", inline: "nearest" })
+  },
+  { immediate: true },
+)
 const strong = ref(true),
   match = ref(false),
   list = ref(""),
@@ -41,21 +57,27 @@ const strong = ref(true),
 const source = ref("/data/adb/modules/playintegrityfix/custom.pif.prop")
 const tabs = ["status", "config", "generate", "compatibility", "diagnostics", "license"] as const
 const fields = ref<Record<string, string> | null>(null)
+const rawEditor = ref(false)
 async function editFields() {
   await s.action(async () => {
     const parsed = await integrityApi.preview(s.content.value)
     fields.value = { ...parsed.entries }
+    rawEditor.value = false
   })
 }
 function updateFields(value: Record<string, string>) {
   fields.value = value
   s.content.value = JSON.stringify(value, null, 2)
 }
-watch(s.config.data, (value) => {
-  if (value && fields.value) fields.value = { ...value.entries }
-})
+watch(
+  [s.config.data, s.content],
+  ([value, content]) => {
+    if (value && content === value.content) fields.value = { ...value.entries }
+  },
+  { immediate: true },
+)
 function importSource() {
-  fields.value = null
+  rawEditor.value = true
   void s.importSource(source.value)
 }
 const data = computed(() => s.status.data.value)
@@ -67,7 +89,7 @@ watch(
   { immediate: true },
 )
 function picked(file: PickedFile) {
-  fields.value = null
+  rawEditor.value = true
   if ("path" in file) {
     source.value = file.path
     void s.importSource(file.path)
@@ -92,7 +114,7 @@ async function importFile(event: Event) {
   if (!file) return
   try {
     if (file.size > 65536) throw new Error(t("fileLimit"))
-    fields.value = null
+    rawEditor.value = true
     s.content.value = await file.text()
     await s.previewContent(true)
   } catch (error) {
@@ -104,7 +126,7 @@ async function importFile(event: Event) {
 </script>
 <template>
   <div class="flex min-h-full flex-col">
-    <nav :aria-label="t('meta.title')" class="flex gap-1 overflow-x-auto px-4 py-2">
+    <nav ref="tabNav" :aria-label="t('meta.title')" class="flex gap-1 overflow-x-auto px-4 py-2">
       <RouterLink
         v-for="tab in tabs"
         :key="tab"
@@ -158,18 +180,29 @@ async function importFile(event: Event) {
             :error="s.config.error.value"
             @retry="s.refresh()"
           >
+            <p
+              v-if="s.config.data.value && s.content.value !== s.config.data.value.content"
+              role="status"
+              class="text-muted-foreground mb-3 text-sm"
+            >
+              {{ t("editing.draft") }}
+            </p>
             <div class="mb-4 flex flex-wrap gap-2">
               <Button
                 variant="secondary"
                 :disabled="s.busy.value"
-                @click="fields ? (fields = null) : editFields()"
+                @click="rawEditor ? editFields() : (rawEditor = true)"
               >
-                <FileCode v-if="fields" /><FileSliders v-else />{{
-                  t(fields ? "rawEditor" : "fieldEditor")
+                <FileSliders v-if="rawEditor" /><FileCode v-else />{{
+                  t(rawEditor ? "fieldEditor" : "rawEditor")
                 }}
               </Button>
             </div>
-            <ConfigFields v-if="fields" :model-value="fields" @update:model-value="updateFields" />
+            <ConfigFields
+              v-if="!rawEditor && fields"
+              :model-value="fields"
+              @update:model-value="updateFields"
+            />
             <Textarea
               v-else
               v-model="s.content.value"
@@ -184,38 +217,48 @@ async function importFile(event: Event) {
               <Button variant="outline" :disabled="s.busy.value" @click="s.previewContent(true)">{{
                 t("migrate")
               }}</Button>
-              <Button variant="outline" @click="copy(s.content.value)">{{
-                global.t("core.actions.copy")
-              }}</Button>
-              <Button variant="outline" @click="exportContent(false)"
-                >{{ global.t("core.actions.export") }} .prop</Button
-              >
-              <Button variant="outline" @click="exportContent(true)"
-                >{{ global.t("core.actions.export") }} .json</Button
-              >
             </div>
-            <Button variant="outline" class="mt-4" @click="upload?.click()">{{
-              global.t("core.actions.import")
-            }}</Button>
-            <input
-              ref="upload"
-              type="file"
-              accept=".json,.prop,.txt"
-              class="hidden"
-              :aria-label="global.t('core.actions.import')"
-              @change="importFile"
-            />
-            <div class="mt-4 flex flex-col gap-2">
-              <Input v-model="source" :aria-label="t('deviceFile')" />
-              <div class="flex gap-2">
-                <Button variant="outline" @click="picker = true">{{
-                  global.t("core.actions.browse")
-                }}</Button
-                ><Button variant="outline" :disabled="s.busy.value" @click="importSource">{{
-                  t("deviceFile")
+            <SettingDetails :title="t('editing.files')" class="mt-4">
+              <div class="flex flex-wrap gap-2">
+                <Button variant="outline" @click="copy(s.content.value)">{{
+                  global.t("core.actions.copy")
                 }}</Button>
+                <Button variant="outline" @click="exportContent(false)"
+                  >{{ global.t("core.actions.export") }} .prop</Button
+                >
+                <Button variant="outline" @click="exportContent(true)"
+                  >{{ global.t("core.actions.export") }} .json</Button
+                >
               </div>
-            </div>
+              <Button variant="outline" class="mt-4" @click="upload?.click()">{{
+                global.t("core.actions.import")
+              }}</Button>
+              <input
+                ref="upload"
+                type="file"
+                accept=".json,.prop,.txt"
+                class="hidden"
+                :aria-label="global.t('core.actions.import')"
+                @change="importFile"
+              />
+              <div class="mt-4 flex flex-col gap-2">
+                <Input v-model="source" :aria-label="t('deviceFile')" />
+                <div class="flex gap-2">
+                  <Button variant="outline" @click="picker = true">{{
+                    global.t("core.actions.browse")
+                  }}</Button
+                  ><Button variant="outline" :disabled="s.busy.value" @click="importSource">{{
+                    t("deviceFile")
+                  }}</Button>
+                </div>
+              </div>
+            </SettingDetails>
+            <SettingDetails :title="t('profiles.title')" class="mt-4">
+              <ProfileLibrary
+                :content="s.content.value"
+                @preview="(value) => s.action(() => s.prepare(value))"
+              />
+            </SettingDetails>
             <Button
               v-if="s.backup.value"
               variant="ghost"
@@ -231,18 +274,26 @@ async function importFile(event: Event) {
           :title="t('nav.generate')"
           :description="t('generateHelp')"
         >
-          <div class="flex flex-col gap-5">
-            <Field orientation="horizontal"
-              ><FieldContent
-                ><FieldLabel for="pif-strong">{{ t("strong") }}</FieldLabel
-                ><FieldDescription>{{ t("strongHelp") }}</FieldDescription></FieldContent
-              ><Switch id="pif-strong" v-model="strong"
-            /></Field>
-            <Field orientation="horizontal"
-              ><FieldLabel for="pif-match">{{ t("match") }}</FieldLabel
-              ><Switch id="pif-match" v-model="match"
-            /></Field>
-          </div>
+          <p class="bg-muted mb-4 rounded-xl p-3 text-sm">{{ t("guide.canary") }}</p>
+          <RouterLink
+            to="/play-integrity/config"
+            class="text-primary mb-4 inline-flex min-h-11 items-center text-sm underline underline-offset-4"
+            >{{ t("guide.import") }}</RouterLink
+          >
+          <SettingDetails :title="t('editing.advanced')">
+            <div class="flex flex-col gap-5">
+              <Field orientation="horizontal"
+                ><FieldContent
+                  ><FieldLabel for="pif-strong">{{ t("strong") }}</FieldLabel
+                  ><FieldDescription>{{ t("strongHelp") }}</FieldDescription></FieldContent
+                ><Switch id="pif-strong" v-model="strong"
+              /></Field>
+              <Field orientation="horizontal"
+                ><FieldLabel for="pif-match">{{ t("match") }}</FieldLabel
+                ><Switch id="pif-match" v-model="match"
+              /></Field>
+            </div>
+          </SettingDetails>
           <div class="mt-3 flex gap-2">
             <Button
               :disabled="s.busy.value || !!s.taskId.value || data?.options.enabled === false"
@@ -321,16 +372,25 @@ async function importFile(event: Event) {
           :title="t('nav.diagnostics')"
           :description="t('limits')"
         >
-          <div class="flex flex-wrap gap-2">
-            <Button :disabled="s.busy.value" @click="s.diagnose()">{{ t("readLogs") }}</Button
-            ><Button variant="outline" :disabled="s.busy.value" @click="s.restart()">{{
-              t("restart")
-            }}</Button>
-          </div>
-          <pre
-            class="bg-muted mt-3 max-h-[60vh] overflow-auto rounded-xl p-3 text-xs whitespace-pre-wrap"
-            >{{ s.log.value || "—" }}</pre>
+          <SettingDetails :title="t('editing.logs')">
+            <div class="flex flex-wrap gap-2">
+              <Button :disabled="s.busy.value" @click="s.diagnose()">{{ t("readLogs") }}</Button
+              ><Button variant="outline" :disabled="s.busy.value" @click="s.restart()">{{
+                t("restart")
+              }}</Button>
+            </div>
+            <pre
+              class="bg-muted mt-3 max-h-[60vh] overflow-auto rounded-xl p-3 text-xs whitespace-pre-wrap"
+              >{{ s.log.value || "—" }}</pre>
+          </SettingDetails>
         </SectionCard>
+        <ConfigInspection v-if="section === 'diagnostics'" />
+        <SectionCard v-if="section === 'diagnostics'" :title="t('history.title')">
+          <SettingDetails :title="t('history.title')"
+            ><TestHistory :revision="s.config.data.value?.revision"
+          /></SettingDetails>
+        </SectionCard>
+        <RuleGuide v-if="section === 'license'" />
         <SectionCard
           v-if="section === 'license'"
           :title="t('nav.license')"
@@ -342,7 +402,7 @@ async function importFile(event: Event) {
         >
       </QueryState>
       <ConfigPreview
-        v-if="s.preview.value"
+        v-if="s.preview.value && (section === 'config' || section === 'generate')"
         :preview="s.preview.value"
         :patches="s.patches.value"
         :busy="

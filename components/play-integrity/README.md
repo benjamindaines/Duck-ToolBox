@@ -98,3 +98,20 @@ overwrite later edits to the same properties; the power control discloses this. 
 PI process restart, and mounts/global properties require a device reboot. Other
 toolbox features remain independent. Boot shell stages are bounded to 30 seconds;
 explicit cleanup has a five-second bound and retains recovery files on failure.
+
+Configuration library and observations use the same version 1 request protocol:
+`profile-list`, `profile-save` (`name`, `content`), `profile-preview` (`id`) and
+`profile-delete` (`id`). At most 12 immutable snapshots are retained. Previewing
+uses the current applied revision; saving, previewing or deleting a snapshot never
+applies configuration or enables the engine.
+
+`record-list`, `record-save` and `record-clear` manage the latest 24 manually
+reported observations. A record supplies `app`, optional `version` and `note`,
+`basic`/`device`/`strong` (`unknown`, `pass`, `fail`) and the saved configuration's
+`revision`. Changed revisions are rejected. Records capture configuration identity
+and engine mode at recording time and are explicitly marked unverified.
+
+`inspect` compares saved Build/property overrides with current system property
+readings using a bounded read-only command. Existing modules may already affect
+those system readings. Target-process values remain unobserved unless measured;
+the comparison does not establish injection or a Google Play Integrity verdict.

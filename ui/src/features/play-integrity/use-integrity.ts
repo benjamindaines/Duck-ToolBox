@@ -48,8 +48,8 @@ export function useIntegrity() {
   let disposed = false
   watch(
     config.data,
-    (value) => {
-      if (value) content.value = value.content
+    (value, previous) => {
+      if (value && (!previous || content.value === previous.content)) content.value = value.content
     },
     { immediate: true },
   )
@@ -80,6 +80,7 @@ export function useIntegrity() {
       client.invalidateQueries({ queryKey: ["integrity-transaction.status"] }),
       client.invalidateQueries({ queryKey: ["play-integrity.status"] }),
       client.invalidateQueries({ queryKey: ["play-integrity.config"] }),
+      client.invalidateQueries({ queryKey: ["play-integrity.inspection"] }),
     ])
   }
   async function prepare(value: Preview) {
@@ -110,6 +111,7 @@ export function useIntegrity() {
           : undefined,
       )
       backup.value = applied.backup
+      content.value = applied.config.content
     } finally {
       await refresh()
     }
@@ -184,7 +186,8 @@ export function useIntegrity() {
     restore: () =>
       action(async () => {
         if (backup.value) {
-          await integrityApi.restore(backup.value)
+          const restored = await integrityApi.restore(backup.value)
+          content.value = restored.config.content
           backup.value = ""
           await refresh()
         }

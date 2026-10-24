@@ -5,6 +5,8 @@ mod command;
 mod config;
 mod denylist;
 mod files;
+mod inspection;
+mod library;
 mod network;
 mod operations;
 mod paths;
