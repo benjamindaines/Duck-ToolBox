@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use duck_core::{AppPaths, fs::write_bytes_atomic};
 use serde::Serialize;
 
-use crate::{DeviceIdsProfile, ProvisionedId, qseecom::SessionInfo};
+use crate::{DeviceIdsProfile, ProvisionedId, SessionInfo};
 
 #[derive(Debug, Serialize)]
 struct DeviceIdsReport<'a> {

@@ -38,14 +38,7 @@ type SendCmd =
     unsafe extern "C" fn(*mut QseeComHandle, *mut c_void, u32, *mut c_void, u32) -> c_int;
 type ShutdownApp = unsafe extern "C" fn(*mut *mut QseeComHandle) -> c_int;
 
-/// Metadata gathered while talking to the TA, surfaced in the provisioning report.
-#[derive(Debug, Default, Clone)]
-pub(crate) struct SessionInfo {
-    pub(crate) loaded_library: Option<String>,
-    pub(crate) ta_api_version: Option<String>,
-    pub(crate) ta_version: Option<String>,
-    pub(crate) response_hex: Option<String>,
-}
+use crate::SessionInfo;
 
 #[derive(Debug, Clone, Copy)]
 struct KmVersion {

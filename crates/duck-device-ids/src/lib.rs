@@ -23,6 +23,16 @@ mod trustkernel;
 pub use cli::{Command, FEATURE, run};
 pub use error::DeviceIdsError;
 
+/// Metadata gathered while talking to the TA, surfaced in the provisioning report.
+/// Shared by both the Qualcomm (QSEECom) and MediaTek (TrustKernel) backends.
+#[derive(Debug, Default, Clone)]
+pub(crate) struct SessionInfo {
+    pub(crate) loaded_library: Option<String>,
+    pub(crate) ta_api_version: Option<String>,
+    pub(crate) ta_version: Option<String>,
+    pub(crate) response_hex: Option<String>,
+}
+
 const DEFAULT_TA_NAME: &str = "keymaster64";
 const DEFAULT_TA_PATH: &str = "/vendor/firmware_mnt/image";
 
@@ -179,7 +189,7 @@ pub fn provision(paths: &AppPaths, profile: DeviceIdsProfile) -> Result<DeviceId
     let mediatek = is_mediatek_device();
     let command = if mediatek { Vec::new() } else { command::build(&ids)? };
 
-    let mut session_info = qseecom::SessionInfo::default();
+    let mut session_info = SessionInfo::default();
     if !resolved.dry_run {
         if !cfg!(target_os = "android") {
             bail!("device ID provisioning is only supported when Duck ToolBox runs on Android");

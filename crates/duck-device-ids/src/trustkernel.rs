@@ -230,7 +230,7 @@ fn kph_verify(api: &KphApi, uuid: &str, tag: &str) -> Result<bool> {
 /// Both `rkp_flag` and `attestation_ids` targets are written. The 128-byte
 /// context buffer fix is applied inline, eliminating the need for a patched
 /// `kph` binary on the device.
-pub(crate) fn provision(profile: &DeviceIdsProfile) -> Result<crate::qseecom::SessionInfo> {
+pub(crate) fn provision(profile: &DeviceIdsProfile) -> Result<crate::SessionInfo> {
     let api = KphApi::load()?;
 
     let rkp_payload = build_rkp_flag_payload(profile);
@@ -258,7 +258,7 @@ pub(crate) fn provision(profile: &DeviceIdsProfile) -> Result<crate::qseecom::Se
 
     eprintln!("trustkernel: both targets verified");
 
-    Ok(crate::qseecom::SessionInfo {
+    Ok(crate::SessionInfo {
         loaded_library: Some(api.lib_path),
         ta_api_version: None,
         ta_version: None,
