@@ -212,6 +212,7 @@ update `update.json` to match the version and `duck-toolbox-<version>.zip` asset
 **KernelSU Modules repository.** The root `module.yaml` supplies the module listing
 metadata and selects `duck-toolbox-*.zip` release assets. Published ZIPs contain
 `module.prop` at their root; the current builds target Android API 26+ on arm64-v8a.
+The installer rejects other architectures before preparing runtime data.
 The repository must enable release immutability and be registered through the
 [KernelSU Modules developer portal](https://developers.kernelsu.org/).
 Nightly prereleases are checked and recorded but are not displayed as stable versions.

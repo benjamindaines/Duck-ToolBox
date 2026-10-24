@@ -94,6 +94,13 @@ pub fn json_file(path: &Path) -> Result<Value> {
 pub struct Lock {
     _file: fs::File,
 }
+impl Drop for Lock {
+    fn drop(&mut self) {
+        // A child forked by another thread may briefly retain this file description
+        // before exec closes it. Lock ownership ends with this guard, not that copy.
+        let _ = self._file.unlock();
+    }
+}
 impl Lock {
     pub fn acquire(data: &Path) -> Result<Self> {
         private_dir(data)?;
@@ -136,6 +143,17 @@ mod tests {
         assert!(Lock::acquire(root.path()).is_err());
         drop(lock);
         assert!(Lock::acquire(root.path()).is_ok());
+    }
+    #[cfg(unix)]
+    #[test]
+    fn lock_guard_releases_even_while_an_inherited_description_exists() {
+        let root = tempfile::tempdir().unwrap();
+        let lock = Lock::acquire(root.path()).unwrap();
+        let inherited = lock._file.try_clone().unwrap();
+        drop(lock);
+        let next = Lock::acquire(root.path()).unwrap();
+        drop(next);
+        drop(inherited);
     }
     #[cfg(unix)]
     #[test]

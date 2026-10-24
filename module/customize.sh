@@ -23,8 +23,8 @@ else
 fi
 
 case "$ARCH" in
-  arm64 | x64) ui_print "- Device platform: $ARCH" ;;
-  *) abort "! Unsupported platform: $ARCH (arm64 or x64 required)" ;;
+  arm64) ui_print "- Device platform: $ARCH" ;;
+  *) abort "! Unsupported platform: $ARCH (this package requires arm64)" ;;
 esac
 
 if [ -z "$API" ] || [ "$API" -lt 26 ]; then

@@ -14,6 +14,9 @@ labels Canary heuristics, removes shell evaluation and checks root-runtime evide
 Build value conversion preserves normalized JSON booleans; generator process groups
 are reaped on cancellation, limits, errors and normal completion.
 Standalone output preserves permissions on existing external directories.
+Companion exchanges share a monotonic deadline, invalid UTF-8 is rejected, JNI text
+uses standard UTF-8 decoding, and empty stop tokens cannot acknowledge shutdown.
+Configuration lock guards explicitly release ownership despite inherited descriptors.
 
 Original PIF concepts and mechanisms are credited upstream to kdrag0n's ProtonAOSP
 and Universal SafetyNet Fix. Boot scripts derive from Displax's USNF MOD fork.

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Derived from Play Integrity Fork native config handling (23ec56c).
-// Modified 2026-10-24: scalar normalization, safe escaping and bounded parsing.
+// Modified 2026-10-24: scalar normalization, rejected invalid UTF-8 and bounded parsing.
 #include "transport.hpp"
 #include "settings.hpp"
 #include <charconv>
@@ -51,7 +51,12 @@ nlohmann::json parse(const std::string &raw) {
         const auto value = entry.value().get<std::string>();
         if (value.size() > 4096 || value.find_first_of(std::string("\0\n\r", 3)) != std::string::npos) return {};
     }
-    return result;
+    // Prop input does not pass through the JSON parser. Reject byte sequences that
+    // the JSON serializer would replace, before the exception-free injection build
+    // serializes Build fields. Valid strings and unknown fields remain unchanged.
+    auto checked = nlohmann::json::parse(result.dump(-1, ' ', false,
+        nlohmann::json::error_handler_t::replace), nullptr, false);
+    return checked == result ? result : nlohmann::json::object();
 }
 }
 

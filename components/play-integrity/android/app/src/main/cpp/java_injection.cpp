@@ -5,9 +5,30 @@
  */
 #include "java_injection.hpp"
 #include <android/log.h>
+#include <limits>
 #define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, "PIF/Native", __VA_ARGS__)
 #define VENDING_PACKAGE "com.android.vending"
 namespace pif {
+jstring javaString(JNIEnv *env, std::string_view text) {
+    if (text.size() > static_cast<size_t>(std::numeric_limits<jsize>::max()) || env->PushLocalFrame(5) < 0) return nullptr;
+    const auto result = [&]() -> jstring {
+        auto bytes = env->NewByteArray(static_cast<jsize>(text.size()));
+        if (!bytes || env->ExceptionCheck()) return nullptr;
+        env->SetByteArrayRegion(bytes, 0, static_cast<jsize>(text.size()),
+                                reinterpret_cast<const jbyte *>(text.data()));
+        if (env->ExceptionCheck()) return nullptr;
+        auto stringClass = env->FindClass("java/lang/String");
+        if (!stringClass || env->ExceptionCheck()) return nullptr;
+        auto constructor = env->GetMethodID(stringClass, "<init>", "([BLjava/lang/String;)V");
+        if (!constructor || env->ExceptionCheck()) return nullptr;
+        auto encoding = env->NewStringUTF("UTF-8");
+        if (!encoding || env->ExceptionCheck()) return nullptr;
+        auto value = static_cast<jstring>(env->NewObject(stringClass, constructor, bytes, encoding));
+        return env->ExceptionCheck() ? nullptr : value;
+    }();
+    return static_cast<jstring>(env->PopLocalFrame(result));
+}
+
 static void setFieldNative(JNIEnv *env, jclass /* clazz_EntryPoint */, jclass targetClass, jobject fieldObj, jstring typeObj, jobject valueObj) {
     if (!targetClass || !fieldObj || !typeObj) return;
 
@@ -95,12 +116,12 @@ void JavaInjection::injectFrame() {
         if (!className || failed("entry name")) return;
         auto entry = static_cast<jclass>(env->CallObjectMethod(loader, load, className));
         if (!entry || failed("entry class")) return;
-        JNINativeMethod methods[] = {{"setFieldNative", "(Ljava/lang/Class;Ljava/lang/reflect/Field;Ljava/lang/String;Ljava/lang/Object;)V", reinterpret_cast<void *>(setFieldNative)}};
+        JNINativeMethod methods[] = {{const_cast<char *>("setFieldNative"), const_cast<char *>("(Ljava/lang/Class;Ljava/lang/reflect/Field;Ljava/lang/String;Ljava/lang/Object;)V"), reinterpret_cast<void *>(setFieldNative)}};
         if (env->RegisterNatives(entry, methods, 1) != JNI_OK || failed("RegisterNatives")) return;
         if (vending) {
             auto method = env->GetStaticMethodID(entry, "init", "(IIILjava/lang/String;)V");
             if (!method || failed("vending init")) return;
-            auto value = env->NewStringUTF(vendingFingerprintValue.c_str());
+            auto value = javaString(env, vendingFingerprintValue);
             if (!value || failed("fingerprint")) return;
             env->CallStaticVoidMethod(entry, method, verboseLogs, spoofVendingFinger, spoofVendingSdk, value);
         } else {

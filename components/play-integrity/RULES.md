@@ -27,6 +27,7 @@ Android 13 及以上的 Basic 要求证明的 root of trust 由 Google 提供；
 | --- | --- |
 | Build 与系统属性 | 分别配置，分别生效；对显式不一致的对应字段给出预览提示，保持用户值。迁移只补缺失的对应属性，不覆盖现有值。 |
 | Build 值类型 | 按实际反射字段处理 String、int、long 和 boolean；JSON 布尔规范化后的 1／0 与文本 true／false 均可用于布尔字段。非法类型或数值只跳过对应字段并记录日志，不把无法识别的布尔值静默转为 false。 |
+| 文本编码 | 配置使用有效 UTF-8，原生 prop 解析也拒绝非法字节。Java 字符串按标准 UTF-8 显式解码，避免把补充平面字符交给只接受 Modified UTF-8 的 NewStringUTF。 |
 | 首发 SDK 与 board API | 普通配置和迁移不注入 25／32；可以通过字段编辑器或原文设置，缺少时提示。保留已有值。首发 API 与当前系统 SDK 含义不同；不能用首发 SDK 直接推断服务端采用哪一组 Android 版本条件。 |
 | Provider | 新配置及显式迁移缺省写入 `spoofProvider=0`，不覆盖已有开关。历史配置没有该字段时保留原生兼容默认 1；界面可显式选择。此 hook 阻止 DroidGuard 读取证书链，不代表生成或增强硬件证明。 |
 | 签名 | `spoofSignature` 默认关闭；仅改变进程内包信息，不能改变服务端应用许可或签名认证。 |
@@ -50,6 +51,8 @@ Android 13 及以上的 Basic 要求证明的 root of trust 由 Google 提供；
 | KernelSU late-load | 由 `late-load.sh` 代替早期阶段；当前 KernelSU 源码随后加载属性并调用 metamodule 挂载，再执行后续阶段。挂载实现与 OEM 行为须实机验证。 |
 | SELinux | 保留 permissive 时限制 enforce/policy 文件读取权限的兼容行为；不是切换内核 enforcing。记录原始权限，关闭时仅恢复未被外部修改的权限；持久属性恢复记录对引号等字符作 shell 数据转义，按上游写回原值，可能覆盖后续对相同持久属性的修改；此行为在关闭界面明确告知。 |
 | 独立关闭 | 先发布停用令牌，再取消生成任务和恢复有记录的兼容状态；非法配置、写锁忙或待恢复事务不阻止停用标记。显式启用只确认当前停用令牌，较早的启用请求不能覆盖后来的关闭。原生 companion、后台任务与 Shell 均检查此状态。已注入进程需重启，已有挂载及全局属性需重启设备。清理失败保留记录并提示重试，不重新启用。 |
+| 停用令牌与通信 | 空停用令牌不能作为有效启用确认，Rust、原生 companion 与 Shell 保持一致。companion 帧头、DEX 与配置传输共享两秒单调时钟截止时间；使用非阻塞 socket，慢速分段数据不会重复延长窗口。接收失败清空输出，超时不作为注入证据。 |
+| 发行架构 | 当前管理程序及引擎 CLI 为 arm64，注入库包括 arm64 与 ARMv7 进程版本；ARMv7 注入库不表示支持 32 位系统。安装器在准备运行数据之前拒绝不匹配的系统架构。 |
 | 禁用／冲突 | 禁用或有活动 PIF／USNF 时跳过注入及引擎属性脚本；早期清理自有遮罩并恢复持久设置。现有属性处理器继续执行原路径及 boot hash 职责。全局修改及已运行进程的 hook 需要重启清除。 |
 
 ## 固定源码依据
@@ -62,13 +65,15 @@ Android 13 及以上的 Basic 要求证明的 root of trust 由 Google 提供；
 - [AOSP frameworks/base 1cdfff55：Build](https://android.googlesource.com/platform/frameworks/base/+/1cdfff555f4a21f71ccc978290e2e212e2f8b168/core/java/android/os/Build.java)、[SystemProperties JNI](https://android.googlesource.com/platform/frameworks/base/+/1cdfff555f4a21f71ccc978290e2e212e2f8b168/core/jni/android_os_SystemProperties.cpp)及 [AndroidKeyStoreSpi](https://android.googlesource.com/platform/frameworks/base/+/1cdfff555f4a21f71ccc978290e2e212e2f8b168/keystore/java/android/security/keystore2/AndroidKeyStoreSpi.java)。
 - [AOSP bionic 731631f3：属性读取](https://android.googlesource.com/platform/bionic/+/731631f300090436d7f5df80d50b6275c8c60a93/libc/system_properties/system_properties.cpp)：同步 callback、cookie 与只读属性长值语义；原生 Get 另走 Read。
 - [AOSP system/core a3b721a3：属性服务](https://android.googlesource.com/platform/system/core/+/a3b721a32242006b59cb12bd62c9133632af3a2d/init/property_service.cpp)：ro 属性 write-once 及派生属性逻辑。
+- [Android NDK：JNI 字符串说明](https://developer.android.com/ndk/guides/jni-tips#utf-8_and_utf-16_strings)：NewStringUTF 接受 Modified UTF-8；标准 UTF-8 输入需要显式解码。
 
 ## 可复现验证与限制
 
 独立 Rust 测试覆盖未知字段、API 值保留、Provider 默认值、只读规则诊断、shell 元字符迁移、Zygisk 误判、超时与取消。
 生成进程独立持有子孙进程组；取消、超时、输出超限、异常及正常完成后均终止残留进程，候选配置不会自动发布。
+配置锁在所属对象结束时显式释放，不因 fork／exec 期间暂存的文件描述符副本延长锁期。
 `python3 scripts/test-play-integrity-scripts.py` 使用隔离命令替身验证持久属性恢复、停用标记及 OEM 前后阶段；DenyList 模式与条件恢复由独立 Rust CLI 测试覆盖。
-`python3 scripts/test-play-integrity-native.py` 检查原生配置及 companion 边界。
+`python3 scripts/test-play-integrity-native.py` 检查原生配置、慢速与阻塞 companion 边界，并通过启用 CheckJNI 的主机 JVM 验证实际 UTF-8 字符串转换。
 `python3 scripts/test-play-integrity-java.py` 在主机 JVM 验证实际 Build 值转换，包括规范化布尔值、数值边界和非法值。
 WebUI 的真实后端契约与浏览器流程覆盖预览、字段编辑、导入、应用失败恢复与多语言。
 

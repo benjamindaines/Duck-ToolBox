@@ -126,6 +126,12 @@ ui_print() { :; }
 . "$PIF_ENGINE_SCRIPTS/power.sh"
 pif_running
 ''',root)
+    (root / "disabled").write_text("")
+    (root / "enabled-token").write_text("")
+    run('''
+. "$PIF_ENGINE_SCRIPTS/power.sh"
+if pif_running; then exit 1; fi
+''',root)
 
 
 print("Shell restoration, shutdown gate, ROM path guards and OEM ordering passed")

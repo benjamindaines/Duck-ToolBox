@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
-"""Run the engine's native protocol tests without Android or the toolbox runtime."""
+"""Run native protocol and host JVM text tests without Android or the toolbox runtime."""
 from pathlib import Path
 import os
+import platform
+import re
 import subprocess
 import tempfile
 
@@ -24,4 +26,22 @@ with tempfile.TemporaryDirectory(prefix="pif-native-fixture-") as fixture:
         str(ENGINE / "tests/native.cpp"), str(SOURCE / "config.cpp"),
         str(SOURCE / "companion.cpp"), "-o", str(TARGET),
     ], check=True)
-    subprocess.run([str(TARGET)], check=True)
+    subprocess.run([str(TARGET)], check=True, timeout=20)
+    # JNI uses Modified UTF-8 for NewStringUTF. Test real standard UTF-8 conversion,
+    # including supplementary code points, against the JVM used for Java checks.
+    properties=subprocess.run(["java","-XshowSettings:properties","-version"],capture_output=True,text=True,check=True)
+    java_home=Path(re.search(r"java.home = (.+)",properties.stderr)[1].strip())
+    host="darwin" if platform.system()=="Darwin" else "linux"
+    library=java_home / "lib/server"
+    stub=root / "android/log.h"
+    stub.parent.mkdir()
+    stub.write_text('#pragma once\n#define ANDROID_LOG_DEBUG 3\nint __android_log_print(int,const char*,const char*,...);\n')
+    jni_target=root / "jni-tests"
+    subprocess.run([
+        os.environ.get("CXX","c++"),"-std=c++23",
+        "-I",str(SOURCE),"-I",str(VENDOR),"-I",str(root),
+        "-I",str(java_home / "include"),"-I",str(java_home / "include" / host),
+        str(ENGINE / "tests/jni.cpp"),str(SOURCE / "java_injection.cpp"),
+        "-L",str(library),"-Wl,-rpath,"+str(library),"-ljvm","-o",str(jni_target),
+    ],check=True)
+    subprocess.run([str(jni_target)],check=True,timeout=10)
