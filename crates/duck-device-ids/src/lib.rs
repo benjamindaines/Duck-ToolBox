@@ -17,6 +17,7 @@ mod error;
 mod qseecom;
 mod report;
 mod spec;
+#[allow(unsafe_code)]
 mod trustkernel;
 
 pub use cli::{Command, FEATURE, run};
